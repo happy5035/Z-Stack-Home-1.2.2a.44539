@@ -196,6 +196,8 @@ void GenericApp_Init( uint8 task_id )
   GenericApp_DstAddr.addrMode = (afAddrMode_t)AddrNotPresent;
   GenericApp_DstAddr.endPoint = 0;
   GenericApp_DstAddr.addr.shortAddr = 0;
+  
+  
 
   // Fill out the endpoint description.
   GenericApp_epDesc.endPoint = GENERICAPP_ENDPOINT;

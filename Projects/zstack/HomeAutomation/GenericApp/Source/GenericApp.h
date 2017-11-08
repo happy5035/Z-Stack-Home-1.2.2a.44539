@@ -71,6 +71,7 @@ extern "C"
 
 // Application Events (OSAL) - These are bit weighted definitions.
 #define GENERICAPP_SEND_MSG_EVT       0x0001
+#define UART_RX_CB_EVT                0x0002
 
 #if defined( IAR_ARMCM3_LM )
 #define GENERICAPP_RTOS_MSG_EVT       0x0002
