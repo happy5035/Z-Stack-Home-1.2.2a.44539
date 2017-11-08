@@ -22,7 +22,7 @@
   its documentation for any purpose.
 
   YOU FURTHER ACKNOWLEDGE AND AGREE THAT THE SOFTWARE AND DOCUMENTATION ARE
-  PROVIDED “AS IS” WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+  PROVIDED “AS IS?WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESS OR IMPLIED,
   INCLUDING WITHOUT LIMITATION, ANY WARRANTY OF MERCHANTABILITY, TITLE,
   NON-INFRINGEMENT AND FITNESS FOR A PARTICULAR PURPOSE. IN NO EVENT SHALL
   TEXAS INSTRUMENTS OR ITS LICENSORS BE LIABLE OR OBLIGATED UNDER CONTRACT,
@@ -117,31 +117,67 @@
 
 /* 1 - Green */
 #define LED1_BV           BV(0)
-#define LED1_SBIT         P1_0
-#define LED1_DDR          P1DIR
+#define LED1_SBIT         P0_0
+#define LED1_DDR          P0DIR
 #define LED1_POLARITY     ACTIVE_HIGH
+  
+#define LED2_BV           BV(1)
+#define LED2_SBIT         P0_1
+#define LED2_DDR          P0DIR
+#define LED2_POLARITY     ACTIVE_HIGH
+  
+#define LED3_BV           BV(2)
+#define LED3_SBIT         P0_2
+#define LED3_DDR          P0DIR
+#define LED3_POLARITY     ACTIVE_HIGH
+  
+#define LED4_BV           BV(3)
+#define LED4_SBIT         P0_3
+#define LED4_DDR          P0DIR
+#define LED4_POLARITY     ACTIVE_HIGH
+  
+#define LED5_BV           BV(0)
+#define LED5_SBIT         P1_0
+#define LED5_DDR          P1DIR
+#define LED5_POLARITY     ACTIVE_HIGH
+  
+#define LED6_BV           BV(1)
+#define LED6_SBIT         P1_1
+#define LED6_DDR          P1DIR
+#define LED6_POLARITY     ACTIVE_HIGH
+  
+#define LED7_BV           BV(2)
+#define LED7_SBIT         P1_2
+#define LED7_DDR          P1DIR
+#define LED7_POLARITY     ACTIVE_HIGH
+  
+#define LED8_BV           BV(3)
+#define LED8_SBIT         P1_3
+#define LED8_DDR          P1DIR
+#define LED8_POLARITY     ACTIVE_HIGH
 
-#if defined (HAL_BOARD_CC2530EB_REV17)
-  /* 2 - Red */
-  #define LED2_BV           BV(1)
-  #define LED2_SBIT         P1_1
-  #define LED2_DDR          P1DIR
-  #define LED2_POLARITY     ACTIVE_HIGH
 
-  /* 3 - Yellow */
-  #define LED3_BV           BV(4)
-  #define LED3_SBIT         P1_4
-  #define LED3_DDR          P1DIR
-  #define LED3_POLARITY     ACTIVE_HIGH
-#endif
+//#if defined (HAL_BOARD_CC2530EB_REV17)
+//  /* 2 - Red */
+//  #define LED2_BV           BV(1)
+//  #define LED2_SBIT         P1_1
+//  #define LED2_DDR          P1DIR
+//  #define LED2_POLARITY     ACTIVE_HIGH
+//
+//  /* 3 - Yellow */
+//  #define LED3_BV           BV(4)
+//  #define LED3_SBIT         P1_4
+//  #define LED3_DDR          P1DIR
+//  #define LED3_POLARITY     ACTIVE_HIGH
+//#endif
 
 /* ------------------------------------------------------------------------------------------------
  *                                    Push Button Configuration
  * ------------------------------------------------------------------------------------------------
  */
 
-#define ACTIVE_LOW        !
-#define ACTIVE_HIGH       !!    /* double negation forces result to be '1' */
+#define ACTIVE_LOW        !!
+#define ACTIVE_HIGH       !    /* double negation forces result to be '0' */
 
 /* S1 */
 #define PUSH1_BV          BV(1)
@@ -263,12 +299,22 @@ extern void MAC_RfFrontendSetup(void);
   /* Turn on cache prefetch mode */                              \
   PREFETCH_ENABLE();                                             \
                                                                  \
-  HAL_TURN_OFF_LED1();                                           \
+   HAL_TURN_OFF_LED1();                                           \
   LED1_DDR |= LED1_BV;                                           \
   HAL_TURN_OFF_LED2();                                           \
   LED2_DDR |= LED2_BV;                                           \
   HAL_TURN_OFF_LED3();                                           \
-  LED3_DDR |= LED3_BV;                                           \
+  LED3_DDR |= LED3_BV;                                             \
+  HAL_TURN_OFF_LED4();                                           \
+  LED4_DDR |= LED4_BV;                                           \
+  HAL_TURN_OFF_LED5();                                           \
+  LED5_DDR |= LED5_BV;                                           \
+  HAL_TURN_OFF_LED6();                                           \
+  LED6_DDR |= LED6_BV;                                           \
+  HAL_TURN_OFF_LED7();                                           \
+  LED7_DDR |= LED7_BV;                                           \
+  HAL_TURN_OFF_LED8();                                           \
+  LED8_DDR |= LED8_BV;                                         \
                                                                  \
   /* configure tristates */                                      \
   P0INP |= PUSH2_BV;                                             \
@@ -358,22 +404,38 @@ extern void MAC_RfFrontendSetup(void);
   #define HAL_TURN_OFF_LED1()       st( LED1_SBIT = LED1_POLARITY (0); )
   #define HAL_TURN_OFF_LED2()       st( LED2_SBIT = LED2_POLARITY (0); )
   #define HAL_TURN_OFF_LED3()       st( LED3_SBIT = LED3_POLARITY (0); )
-  #define HAL_TURN_OFF_LED4()       HAL_TURN_OFF_LED1()
+  #define HAL_TURN_OFF_LED4()       st( LED4_SBIT = LED4_POLARITY (0); )
+  #define HAL_TURN_OFF_LED5()       st( LED5_SBIT = LED5_POLARITY (0); )
+  #define HAL_TURN_OFF_LED6()       st( LED6_SBIT = LED6_POLARITY (0); )
+  #define HAL_TURN_OFF_LED7()       st( LED7_SBIT = LED7_POLARITY (0); )
+  #define HAL_TURN_OFF_LED8()       st( LED8_SBIT = LED8_POLARITY (0); )
 
   #define HAL_TURN_ON_LED1()        st( LED1_SBIT = LED1_POLARITY (1); )
   #define HAL_TURN_ON_LED2()        st( LED2_SBIT = LED2_POLARITY (1); )
   #define HAL_TURN_ON_LED3()        st( LED3_SBIT = LED3_POLARITY (1); )
-  #define HAL_TURN_ON_LED4()        HAL_TURN_ON_LED1()
+  #define HAL_TURN_ON_LED4()        st( LED4_SBIT = LED4_POLARITY (1); )
+  #define HAL_TURN_ON_LED5()        st( LED5_SBIT = LED5_POLARITY (1); )
+  #define HAL_TURN_ON_LED6()        st( LED6_SBIT = LED6_POLARITY (1); )
+  #define HAL_TURN_ON_LED7()        st( LED7_SBIT = LED7_POLARITY (1); )
+  #define HAL_TURN_ON_LED8()        st( LED8_SBIT = LED8_POLARITY (1); )
 
   #define HAL_TOGGLE_LED1()         st( if (LED1_SBIT) { LED1_SBIT = 0; } else { LED1_SBIT = 1;} )
   #define HAL_TOGGLE_LED2()         st( if (LED2_SBIT) { LED2_SBIT = 0; } else { LED2_SBIT = 1;} )
   #define HAL_TOGGLE_LED3()         st( if (LED3_SBIT) { LED3_SBIT = 0; } else { LED3_SBIT = 1;} )
-  #define HAL_TOGGLE_LED4()         HAL_TOGGLE_LED1()
+  #define HAL_TOGGLE_LED4()         st( if (LED4_SBIT) { LED4_SBIT = 0; } else { LED4_SBIT = 1;} )
+  #define HAL_TOGGLE_LED5()         st( if (LED5_SBIT) { LED5_SBIT = 0; } else { LED5_SBIT = 1;} )
+  #define HAL_TOGGLE_LED6()         st( if (LED6_SBIT) { LED6_SBIT = 0; } else { LED6_SBIT = 1;} )
+  #define HAL_TOGGLE_LED7()         st( if (LED7_SBIT) { LED7_SBIT = 0; } else { LED7_SBIT = 1;} )
+  #define HAL_TOGGLE_LED8()         st( if (LED8_SBIT) { LED8_SBIT = 0; } else { LED8_SBIT = 1;} )
 
   #define HAL_STATE_LED1()          (LED1_POLARITY (LED1_SBIT))
   #define HAL_STATE_LED2()          (LED2_POLARITY (LED2_SBIT))
   #define HAL_STATE_LED3()          (LED3_POLARITY (LED3_SBIT))
-  #define HAL_STATE_LED4()          HAL_STATE_LED1()
+  #define HAL_STATE_LED4()          (LED4_POLARITY (LED4_SBIT))
+  #define HAL_STATE_LED5()          (LED5_POLARITY (LED5_SBIT))
+  #define HAL_STATE_LED6()          (LED6_POLARITY (LED6_SBIT))
+  #define HAL_STATE_LED7()          (LED7_POLARITY (LED7_SBIT))
+  #define HAL_STATE_LED8()          (LED8_POLARITY (LED8_SBIT))
       
 #elif defined (HAL_PA_LNA_SE2431L) || defined (HAL_PA_LNA_CC2592)
   #define HAL_TURN_OFF_LED3()       st( LED3_SBIT = LED3_POLARITY (0); )
