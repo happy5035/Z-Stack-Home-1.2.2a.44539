@@ -158,6 +158,7 @@ uint32 tempPacketSendTimeDelay = 30000;			//30s
 
 //存储温度数据
 FifoQueue tempQueue;
+uint8 extAddr[Z_EXTADDR_LEN];
 
 /*********************************************************************
  * LOCAL FUNCTIONS
@@ -203,9 +204,9 @@ void GenericApp_Init( uint8 task_id )
   // If the hardware is application specific - add it here.
   // If the hardware is other parts of the device add it in main().
 
-  GenericApp_DstAddr.addrMode = (afAddrMode_t)AddrNotPresent;
-  GenericApp_DstAddr.endPoint = 0;
-  GenericApp_DstAddr.addr.shortAddr = 0;
+  GenericApp_DstAddr.addrMode = (afAddrMode_t)Addr16Bit;
+  GenericApp_DstAddr.endPoint = GENERICAPP_ENDPOINT;
+  GenericApp_DstAddr.addr.shortAddr = 0x00;
   
 	//广播地址
 	GenericApp_BroadcastAddr.addrMode = (afAddrMode_t)
@@ -232,8 +233,10 @@ void GenericApp_Init( uint8 task_id )
   HalLcdWriteString( "GenericApp", HAL_LCD_LINE_1 );
 #endif
 
-  ZDO_RegisterForZDOMsg( GenericApp_TaskID, End_Device_Bind_rsp );
-  ZDO_RegisterForZDOMsg( GenericApp_TaskID, Match_Desc_rsp );
+//  ZDO_RegisterForZDOMsg( GenericApp_TaskID, End_Device_Bind_rsp );
+//  ZDO_RegisterForZDOMsg( GenericApp_TaskID, Match_Desc_rsp );
+	//初始化模块extAddr
+	ZMacGetReq( ZMacExtAddr, extAddr );
 
 //    TempSampleCfg();
 }
@@ -554,7 +557,37 @@ static void SampleTimeHandler(void){
 	
 }
 static void TempPacketSendHandler(void){
-
+	uint8 len;
+	len = tempQueue.count;
+	if(len > TEMP_PACKET_SEND_SIZE){
+		len = TEMP_PACKET_SEND_SIZE;
+	}
+	sendData_t* start ;
+	uint8* packet;
+	start = &tempQueue.dat[tempQueue.front];
+    packet = osal_mem_alloc(len*sizeof(sendData_t) + Z_EXTADDR_LEN );
+	if(packet){
+		osal_memcpy(packet,extAddr,Z_EXTADDR_LEN);
+		osal_memcpy(packet+Z_EXTADDR_LEN,start,len*sizeof(sendData_t));
+		if (AF_DataRequest(&GenericApp_DstAddr, &GenericApp_epDesc, 
+			GENERICAPP_CLUSTERID, 
+			len * sizeof(sendData_t) + Z_EXTADDR_LEN , //(byte)osal_strlen( theMessageData ) + 1,
+		(byte *) packet, 
+			&GenericApp_TransID, 
+			AF_DISCV_ROUTE, AF_DEFAULT_RADIUS) == afStatus_SUCCESS)
+		{
+			// Successfully requested to be sent.
+			HalLedBlink(HAL_LED_4, 1, 50, 500);
+			printf("send temp success\n");
+			QueueRemove(&tempQueue,len);
+		}else{
+			printf("send temp failed\n");
+	    }
+        
+	    osal_mem_free(packet);
+    }else{
+		printf("alloc packet failed\n");
+	}
 }
 
 /**
@@ -567,19 +600,6 @@ static void TempSampleCfg(void){
 }
 
 static uint16 readTemp(){
-//	uint16 value;
-//	ADCCON1 			|= 0x40;					//启动AD转化  
-//	ADCCON3 			= (0x3E);					//选择1.25V为参考电压；14位分辨率；对片内温度传感器采样
-//	ADCCON1 			|= 0x30;					//选择ADC的启动模式为手动
-//	while (! (ADCCON1 & 0x80))
-//		; //等待 AD 转换完成 
-//
-//	value				= ADCL >> 4;				//ADCL 寄存器低 2 位无效，由于他只有12位有效，ADCL寄存器低4位无效。网络上很多代码这里都是右移两位，那是不对的
-//	value				|= (((uint8) ADCH) << 4);
-//	if(bCalibrate){
-//		voltageAtTemp19 = value;
-//		bCalibrate = FALSE;
-//	}
     uint8 i;
 	uint16 adcValue;
 	uint16 value;

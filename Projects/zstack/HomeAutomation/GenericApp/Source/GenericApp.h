@@ -66,6 +66,10 @@ extern "C"
 #define GENERICAPP_MAX_CLUSTERS       1
 #define GENERICAPP_CLUSTERID          1
 
+
+#define TEMP_PACKET_SEND_SIZE     30
+
+
 // Send Message Timeout
 #define GENERICAPP_SEND_MSG_TIMEOUT   5000     // Every 5 seconds
 
