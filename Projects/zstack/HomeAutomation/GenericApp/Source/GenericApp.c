@@ -65,6 +65,7 @@
 #include "ZDProfile.h"
 #include "user_printf.h"
 #include "FIFOQueue.h"
+#include "OSAL_PwrMgr.h"
 
 #include "GenericApp.h"
 #include "DebugTrace.h"
@@ -155,6 +156,7 @@ static uint16   voltageAtTemp19 = 0;
 static bool     bCalibrate = TRUE;
 uint32  sampleTempTimeDelay = 5000;				//1s
 uint32 tempPacketSendTimeDelay = 30000;			//30s
+uint32 syncTimeDealy = 1000*60;
 
 //存储温度数据
 FifoQueue tempQueue;
@@ -328,6 +330,7 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
 				TempSampleCfg();
                 //温度数据队列初始化
                 QueueInit(&tempQueue);
+				osal_pwrmgr_device(PWRMGR_BATTERY);
 			}
             
           }
