@@ -155,8 +155,10 @@ static uint32   txMsgDelay = GENERICAPP_SEND_MSG_TIMEOUT;
 static uint16   voltageAtTemp19 = 0;
 static bool     bCalibrate = TRUE;
 uint32  sampleTempTimeDelay = 5000;				//1s
-uint32 tempPacketSendTimeDelay = 30000;			//30s
-uint32 syncTimeDealy = 1000*60;
+uint32 tempPacketSendTimeDelay = 10000;			//30s
+uint8 tempPacketSendRetrayTimes = 0;			//温度数据包重复发送次数
+uint8 tempPacketSendPacketTransID;
+uint32 syncTimeDealy = (uint32)1000*60;
 
 //存储温度数据
 FifoQueue tempQueue;
@@ -295,6 +297,7 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
 
           sentStatus = afDataConfirm->hdr.status;
           // Action taken when confirmation is received.
+          printf("%d data confirm,status: 0x%x\n", sentTransID,sentStatus);
           if ( sentStatus != ZSuccess )
           {
             // The data wasn't delivered -- Do something
@@ -577,7 +580,7 @@ static void TempPacketSendHandler(void){
 			len * sizeof(sendData_t) + Z_EXTADDR_LEN , //(byte)osal_strlen( theMessageData ) + 1,
 		(byte *) packet, 
 			&GenericApp_TransID, 
-			AF_DISCV_ROUTE, AF_DEFAULT_RADIUS) == afStatus_SUCCESS)
+			AF_DISCV_ROUTE|AF_ACK_REQUEST, AF_DEFAULT_RADIUS) == afStatus_SUCCESS)
 		{
 			// Successfully requested to be sent.
 			HalLedBlink(HAL_LED_4, 1, 50, 500);
