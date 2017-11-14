@@ -77,24 +77,24 @@ void IIC_Start(void)
 {
     WriteSDA1();
     WriteSCL1();
-    delay_us(50);
+    delay_us(5);
     WriteSDA0();
-    delay_us(50);
+    delay_us(5);
     WriteSCL0();
-    delay_us(50);//锁住IIC 总线，准备发送或接收数据
+    delay_us(5);//锁住IIC 总线，准备发送或接收数据
 }
 
 /*终止I2C总线，当SCL为高电平时使SDA产生一个正跳变*/
 void IIC_Stop(void)
 {
     WriteSDA0();
-    delay_us(50);
+    delay_us(5);
     WriteSCL1();
-    delay_us(50);
+    delay_us(5);
     WriteSDA1();
-    delay_us(50);
+    delay_us(5);
     WriteSCL0();
-    delay_us(50);
+    delay_us(5);
 }
 
 /*发送0，在SCL为高电平时使SDA信号为低*/
@@ -102,9 +102,9 @@ void SEND_0(void)   /* SEND ACK */
 {
     WriteSDA0();
     WriteSCL1();
-    delay_us(50);
+    delay_us(5);
     WriteSCL0();
-    delay_us(50);
+    delay_us(5);
 }
 
 /*发送1，在SCL为高电平时使SDA信号为高*/
@@ -112,9 +112,9 @@ void SEND_1(void)
 {
     WriteSDA1();
     WriteSCL1();
-    delay_us(50);
+    delay_us(5);
     WriteSCL0();
-    delay_us(50);
+    delay_us(5);
 }
 
 /*发送完一个字节后检验设备的应答信号*/    
@@ -123,23 +123,23 @@ char IIC_Wait_Ack(void)
 	bool bit;
     WriteSDA1();
     WriteSCL1();
-    delay_us(50);
+    delay_us(5);
 	ReadSDA();
     bit=SDA;
-    delay_us(50);
+    delay_us(5);
     WriteSCL0();
-    delay_us(50);
+    delay_us(5);
     return bit;
 }
 
 void Write_Acknowledge(void)
 {
     WriteSDA0();   
-    delay_us(50);
+    delay_us(5);
     WriteSCL1();   
-    delay_us(50);
+    delay_us(5);
     WriteSCL0();   
-    delay_us(50);
+    delay_us(5);
 }
 
 /*向I2C总线写一个字节*/
@@ -171,9 +171,9 @@ uint8 IIC_Read_Byte(void)
     for(i=0;i<8;i++)
     {   
         WriteSCL0();
-        delay_us(50);
+        delay_us(5);
         WriteSCL1(); 
-        delay_us(50);
+        delay_us(5);
 		receive <<=1;
         if(SDA) receive ++;
     }

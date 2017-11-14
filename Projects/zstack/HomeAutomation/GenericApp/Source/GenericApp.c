@@ -154,8 +154,6 @@ static uint16 rxMsgCount;
 
 // Time interval between sending messages
 static uint32   txMsgDelay = GENERICAPP_SEND_MSG_TIMEOUT;
-static uint16   voltageAtTemp19 = 0;
-static bool     bCalibrate = TRUE;
 uint32  sampleTempTimeDelay = 5000;				//1s
 uint32 tempPacketSendTimeDelay = 60000;			//30s
 uint8 tempPacketSendRetrayTimes = 0;			//温度数据包重复发送次数
@@ -376,8 +374,8 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
 	}
 	if(events & TEMP_PACKET_SEND_EVT){
 		uint16 random;
-		random = osal_rand() * tempPacketTimeWindow * tempPacketSendTimeDelay / 65535;
-		printf("random window:%d\n",random);
+		random = (uint16)(((float)osal_rand() / 65535) * tempPacketTimeWindow * tempPacketSendTimeDelay) ;
+		printf("random window:%u\n",random);
 		TempPacketSendHandler();
 		osal_start_timerEx(GenericApp_TaskID, TEMP_PACKET_SEND_EVT, tempPacketSendTimeDelay + random);
 		return events ^ TEMP_PACKET_SEND_EVT;
@@ -611,8 +609,9 @@ static void TempPacketSendHandler(void){
 *	温度传感器配置
 */
 static void TempSampleCfg(void){
-	TR0 				= 0X01; 					/*这里我让AD和温度传感器相连*/
-	ATEST				= 0X01; 					/*启动温度传感器*/
+//	TR0 				= 0X01; 					/*这里我让AD和温度传感器相连*/
+//	ATEST				= 0X01; 					/*启动温度传感器*/
+	
 
 }
 
@@ -627,9 +626,16 @@ static int16 readTemp(){
 //	return	(int16)(re*100);
     int16 res;
 	float temp;
+	//设置分辨率
+	Set_Resolution(RESOLUTION_T11);
 	temp = SHT2X_MeasureNHM(TEMP_MEASURE_N_MASTER);
     res = (int16) (temp*100);
 	printf("%d,%02d\n",res/100,res %100);
+
+	float rh;
+	Set_Resolution(RESOLUTION_RH10);
+	rh = SHT2X_MeasureNHM(HUMI_MEASURE_N_MASTER);
+	printf("%d\n",(int16)rh);
 
 	return res;
 

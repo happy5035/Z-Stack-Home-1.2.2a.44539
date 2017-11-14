@@ -49,8 +49,9 @@ void SoftReset(void) //软重启
 	IIC_Stop();
 }
 //设置分辨率，可以不用，默认就行
-void Set_Resolution(void)
+void Set_Resolution(u8 resolution)
 {
+	resolution |= 0x02 ;
 	IIC_Start();
 	IIC_Send_Byte(0x80); //发送写命令
 	if(IIC_Wait_Ack()==0){
