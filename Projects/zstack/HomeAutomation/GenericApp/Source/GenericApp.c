@@ -66,6 +66,7 @@
 #include "user_printf.h"
 #include "FIFOQueue.h"
 #include "OSAL_PwrMgr.h"
+#include "sh20.h"
 
 #include "GenericApp.h"
 #include "DebugTrace.h"
@@ -155,11 +156,12 @@ static uint16 rxMsgCount;
 static uint32   txMsgDelay = GENERICAPP_SEND_MSG_TIMEOUT;
 static uint16   voltageAtTemp19 = 0;
 static bool     bCalibrate = TRUE;
-uint32  sampleTempTimeDelay = 1000;				//1s
-uint32 tempPacketSendTimeDelay = 10000;			//30s
+uint32  sampleTempTimeDelay = 5000;				//1s
+uint32 tempPacketSendTimeDelay = 60000;			//30s
 uint8 tempPacketSendRetrayTimes = 0;			//温度数据包重复发送次数
 uint8 tempPacketSendPacketTransID;
 uint32 syncTimeDealy = (uint32)1000*60;
+uint16 tempPacketTimeWindow = 1;
 
 //发送数据包
 typedef struct
@@ -185,7 +187,7 @@ static void GenericApp_MessageMSGCB( afIncomingMSGPacket_t *pckt );
 static void SampleTimeHandler(void);
 static void TempPacketSendHandler(void);
 static void TempSampleCfg(void);
-static uint16 readTemp(void);
+static int16 readTemp(void);
 static uint16 readVcc(void);
 static uint8* buildTempSendPacket(uint8* len);
 
@@ -342,7 +344,7 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
 				HalLedSet(HAL_LED_3, HAL_LED_MODE_ON);
 				//开启采样和发送定时器
 				osal_start_reload_timer(GenericApp_TaskID, SAMPLE_TEMP_EVT, sampleTempTimeDelay);
-				osal_start_reload_timer(GenericApp_TaskID, TEMP_PACKET_SEND_EVT, tempPacketSendTimeDelay);
+				osal_start_timerEx(GenericApp_TaskID, TEMP_PACKET_SEND_EVT, tempPacketSendTimeDelay);
                 
 				TempSampleCfg();
                 //温度数据队列初始化
@@ -373,7 +375,11 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
 		return events ^ SAMPLE_TEMP_EVT;
 	}
 	if(events & TEMP_PACKET_SEND_EVT){
+		uint16 random;
+		random = osal_rand() * tempPacketTimeWindow * tempPacketSendTimeDelay / 65535;
+		printf("random window:%d\n",random);
 		TempPacketSendHandler();
+		osal_start_timerEx(GenericApp_TaskID, TEMP_PACKET_SEND_EVT, tempPacketSendTimeDelay + random);
 		return events ^ TEMP_PACKET_SEND_EVT;
 	}
 
@@ -573,7 +579,6 @@ static void SampleTimeHandler(void){
 		printf("temp queue full");
 //		osal_stop_timerEx(uint8 task_id, uint16 event_id)
 	}
-	printf("%2d.%02d\n",temp/100,temp%100);
 	
 }
 static void TempPacketSendHandler(void){
@@ -611,31 +616,22 @@ static void TempSampleCfg(void){
 
 }
 
-static uint16 readTemp(){
-    uint8 i;
-	uint16 adcValue;
-	uint16 value;
-	adcValue = 0;
-	
-	for (i = 0; i < 4; i++){
-		ADCCON3 |=0x0E;
-		ADCCON3 &= 0x3f;
-		ADCCON3 |=0x30;
-		ADCCON1 |= 0x30;
-		ADCCON1 |= 0x40;
-		while(!(ADCCON1 & 0X80));
-		value = ADCL>>2;
-		value |=(((uint16)ADCH)<<6);
-		adcValue +=value;
-	}
-	value = adcValue >>2;
-	if(bCalibrate){
-		voltageAtTemp19 = value;
-		bCalibrate = FALSE;
-	}
-    float re;
-    re = (value - voltageAtTemp19) / 4.0 + 10;
-	return	(uint16)(re * 100); 
+static int16 readTemp(){
+//	uint16 adcValue;
+//	adcValue = 0;
+//    float re;
+//	
+//	TR0 |= 0x01;
+//	adcValue = HalAdcRead(HAL_ADC_CHANNEL_TEMP, HAL_ADC_RESOLUTION_12);
+//    re = ((int16)adcValue - 1480) / 4.0  + 25;
+//	return	(int16)(re*100);
+    int16 res;
+	float temp;
+	temp = SHT2X_MeasureNHM(TEMP_MEASURE_N_MASTER);
+    res = (int16) (temp*100);
+	printf("%d,%02d\n",res/100,res %100);
+
+	return res;
 
 }
 
