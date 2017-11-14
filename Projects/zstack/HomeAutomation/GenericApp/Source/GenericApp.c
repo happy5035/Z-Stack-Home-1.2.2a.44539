@@ -79,6 +79,7 @@
 #include "hal_led.h"
 #include "hal_key.h"
 #include "hal_uart.h"
+#include "hal_adc.h"
 
 /* RTOS */
 #if defined( IAR_ARMCM3_LM )
@@ -154,15 +155,26 @@ static uint16 rxMsgCount;
 static uint32   txMsgDelay = GENERICAPP_SEND_MSG_TIMEOUT;
 static uint16   voltageAtTemp19 = 0;
 static bool     bCalibrate = TRUE;
-uint32  sampleTempTimeDelay = 5000;				//1s
+uint32  sampleTempTimeDelay = 1000;				//1s
 uint32 tempPacketSendTimeDelay = 10000;			//30s
 uint8 tempPacketSendRetrayTimes = 0;			//温度数据包重复发送次数
 uint8 tempPacketSendPacketTransID;
 uint32 syncTimeDealy = (uint32)1000*60;
 
+//发送数据包
+typedef struct
+{
+	uint8 	extAddr[Z_EXTADDR_LEN];
+	uint16 	vdd;
+	UTCTime 	startTime;
+	uint8 	numbers;
+	uint16	sampleFreq;
+}tempPacket_t;
 //存储温度数据
 FifoQueue tempQueue;
 uint8 extAddr[Z_EXTADDR_LEN];
+tempPacket_t tempPacketHead; 
+
 
 /*********************************************************************
  * LOCAL FUNCTIONS
@@ -174,6 +186,8 @@ static void SampleTimeHandler(void);
 static void TempPacketSendHandler(void);
 static void TempSampleCfg(void);
 static uint16 readTemp(void);
+static uint16 readVcc(void);
+static uint8* buildTempSendPacket(uint8* len);
 
 
 /*********************************************************************
@@ -563,21 +577,14 @@ static void SampleTimeHandler(void){
 	
 }
 static void TempPacketSendHandler(void){
-	uint8 len;
-	len = tempQueue.count;
-	if(len > TEMP_PACKET_SEND_SIZE){
-		len = TEMP_PACKET_SEND_SIZE;
-	}
-	sendData_t* start ;
+	
 	uint8* packet;
-	start = &tempQueue.dat[tempQueue.front];
-    packet = osal_mem_alloc(len*sizeof(sendData_t) + Z_EXTADDR_LEN );
+	uint8 len;
+    packet = buildTempSendPacket(&len);
 	if(packet){
-		osal_memcpy(packet,extAddr,Z_EXTADDR_LEN);
-		osal_memcpy(packet+Z_EXTADDR_LEN,start,len*sizeof(sendData_t));
 		if (AF_DataRequest(&GenericApp_DstAddr, &GenericApp_epDesc, 
 			GENERICAPP_CLUSTERID, 
-			len * sizeof(sendData_t) + Z_EXTADDR_LEN , //(byte)osal_strlen( theMessageData ) + 1,
+			len, //(byte)osal_strlen( theMessageData ) + 1,
 		(byte *) packet, 
 			&GenericApp_TransID, 
 			AF_DISCV_ROUTE|AF_ACK_REQUEST, AF_DEFAULT_RADIUS) == afStatus_SUCCESS)
@@ -589,10 +596,9 @@ static void TempPacketSendHandler(void){
 		}else{
 			printf("send temp failed\n");
 	    }
-        
 	    osal_mem_free(packet);
     }else{
-		printf("alloc packet failed\n");
+		printf("build packet failed\n");
 	}
 }
 
@@ -632,5 +638,62 @@ static uint16 readTemp(){
 	return	(uint16)(re * 100); 
 
 }
+
+static uint16 readVcc(void){
+	HalAdcSetReference(HAL_ADC_REF_125V);
+	uint16 adcValue;
+	float vcc;
+	adcValue =  HalAdcRead(HAL_ADC_CHANNEL_VDD, HAL_ADC_RESOLUTION_10);
+	if(adcValue > 512 ){
+		printf("read vcc negtive\n");
+		return 0;
+	}
+	vcc = 3 * 1.15 * adcValue / 511;
+	return (uint16)(vcc * 100);
+}
+/**
+*	构造发送数据包，返回数据包制作并修改数据包长度
+*/
+static uint8* buildTempSendPacket(uint8 *len){
+	tempPacketHead.vdd = readVcc();
+	uint8 _len;
+	_len = tempQueue.count;
+	if(_len > TEMP_PACKET_SEND_SIZE){
+		_len = TEMP_PACKET_SEND_SIZE;
+	}
+	sendData_t* start ;
+	uint8* packet;
+	start = &tempQueue.dat[tempQueue.front];
+	osal_memcpy(tempPacketHead.extAddr, extAddr, Z_EXTADDR_LEN);
+	tempPacketHead.startTime = start->utcSecs;
+	tempPacketHead.numbers = _len;
+	tempPacketHead.sampleFreq = sampleTempTimeDelay;
+	printf("vcc:%d\n",tempPacketHead.vdd);
+	printf("startTime:%02x%02x%02x%02x\n"
+		,BREAK_UINT32(tempPacketHead.startTime, 3)
+		,BREAK_UINT32(tempPacketHead.startTime, 2)
+		,BREAK_UINT32(tempPacketHead.startTime, 1)
+		,BREAK_UINT32(tempPacketHead.startTime, 0)
+		);
+	printf("numbers:%d\n",tempPacketHead.numbers);
+	printf("sampleFreq:%d\n",tempPacketHead.sampleFreq);
+	*len = _len*sizeof(int16)  + sizeof(tempPacket_t);
+	packet = osal_mem_alloc(*len);
+	if(packet){
+		osal_memcpy(packet,&tempPacketHead,sizeof(tempPacketHead));
+		int i;
+		for (i = 0; i < _len; i++){
+			*(packet+sizeof(tempPacketHead) + 2*i) = LO_UINT16(start->temp);
+			*(packet+sizeof(tempPacketHead) + 2*i +1) = HI_UINT16(start->temp);
+		}
+		return packet;
+	}else{
+		return NULL;
+	}
+
+	
+}
+
+
 
 

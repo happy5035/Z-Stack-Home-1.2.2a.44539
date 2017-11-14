@@ -67,6 +67,8 @@ extern "C"
 #define GENERICAPP_CLUSTERID          1
 
 
+
+
 #define TEMP_PACKET_SEND_SIZE     		30
 #define TEMP_PACKET_SEND_RETURY_TIMES   3
 
