@@ -17,7 +17,12 @@
 #define  RESOLUTION_T13				0x80
 #define  RESOLUTION_RH11			0x81
 #define  RESOLUTION_T11				0x81
-float SHT2X_MeasureNHM(char whatdo);
+
+
+
+bool SHT2X_StartMeasureNHM(char whatdo);
+bool SHT2X_MeasureReady(char whatdo);
+int16 SHT2X_ReadMeasure(char whatdo);
 
 void SoftReset(void) ;
 

@@ -71,16 +71,22 @@ extern "C"
 
 #define TEMP_PACKET_SEND_SIZE     		30
 #define TEMP_PACKET_SEND_RETURY_TIMES   3
+#define TEMP_MEASURE_FAILED_TIMEOUT     50
+#define TEMP_MEASURE_WAIT_TIMEOUT		15
+#define TEMP_MEASURE_RESTART_TIMEOUT    15
 
 
 // Send Message Timeout
 #define GENERICAPP_SEND_MSG_TIMEOUT   5000     // Every 5 seconds
-
 // Application Events (OSAL) - These are bit weighted definitions.
 #define GENERICAPP_SEND_MSG_EVT       0x0001
-#define UART_RX_CB_EVT                0x0002
+#define UART_RX_CB_EVT                0x0002 	
 #define SAMPLE_TEMP_EVT               0x0004
-#define TEMP_PACKET_SEND_EVT		  0x0020
+#define TEMP_PACKET_SEND_EVT		  0x0010
+#define TEMP_MEASURE_TIEMOUT_EVT      0x0020
+#define TEMP_MEAUSRE_START_EVT	  	  0x0040
+#define TEMP_MEASUERING_EVT		 	  0x0080
+#define TEMP_MEASURE_READY_EVT	  	  0x0100
 
 #if defined( IAR_ARMCM3_LM )
 #define GENERICAPP_RTOS_MSG_EVT       0x0002

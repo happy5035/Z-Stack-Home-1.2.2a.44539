@@ -154,8 +154,8 @@ static uint16 rxMsgCount;
 
 // Time interval between sending messages
 static uint32   txMsgDelay = GENERICAPP_SEND_MSG_TIMEOUT;
-uint32  sampleTempTimeDelay = 5000;				//1s
-uint32 tempPacketSendTimeDelay = 60000;			//30s
+uint32  sampleTempTimeDelay = 1000;				//1s
+uint32 tempPacketSendTimeDelay = 10000;			//30s
 uint8 tempPacketSendRetrayTimes = 0;			//温度数据包重复发送次数
 uint8 tempPacketSendPacketTransID;
 uint32 syncTimeDealy = (uint32)1000*60;
@@ -175,6 +175,12 @@ FifoQueue tempQueue;
 uint8 extAddr[Z_EXTADDR_LEN];
 tempPacket_t tempPacketHead; 
 
+typedef struct{
+	osal_event_hdr_t event;
+	uint8 status;
+}tempMeasureMsg_t;
+uint8 tempStatus = 0;
+
 
 /*********************************************************************
  * LOCAL FUNCTIONS
@@ -188,6 +194,11 @@ static void TempSampleCfg(void);
 static int16 readTemp(void);
 static uint16 readVcc(void);
 static uint8* buildTempSendPacket(uint8* len);
+static void initTempStatus(void);
+static void startTempStatus(void);
+static void ingTempStatus(void);
+static void readyTempStatus(void);
+static void failedTempStatus(void);
 
 
 /*********************************************************************
@@ -341,8 +352,8 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
 				printf("end device start...\n");
 				HalLedSet(HAL_LED_3, HAL_LED_MODE_ON);
 				//开启采样和发送定时器
-				osal_start_reload_timer(GenericApp_TaskID, SAMPLE_TEMP_EVT, sampleTempTimeDelay);
-				osal_start_timerEx(GenericApp_TaskID, TEMP_PACKET_SEND_EVT, tempPacketSendTimeDelay);
+				osal_start_timerEx(GenericApp_TaskID, SAMPLE_TEMP_EVT, sampleTempTimeDelay);
+				osal_start_reload_timer(GenericApp_TaskID, TEMP_PACKET_SEND_EVT, tempPacketSendTimeDelay);
                 
 				TempSampleCfg();
                 //温度数据队列初始化
@@ -352,7 +363,6 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
             
           }
           break;
-
         default:
           break;
       }
@@ -369,15 +379,44 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
   }
   
 	if(events & SAMPLE_TEMP_EVT){
-		SampleTimeHandler();
+		Set_Resolution(RESOLUTION_T11);
+		osal_start_timerEx(GenericApp_TaskID, TEMP_MEASURE_TIEMOUT_EVT, TEMP_MEASURE_FAILED_TIMEOUT);
+		osal_set_event(GenericApp_TaskID, TEMP_MEAUSRE_START_EVT);
+//		SampleTimeHandler();
 		return events ^ SAMPLE_TEMP_EVT;
 	}
+	
+
+	if(events & TEMP_MEASURE_TIEMOUT_EVT){
+		printf("failed temp \n");
+		failedTempStatus();
+//		tempStatus = TEMP_MEASURE_FAILED_STATUS;
+		return events ^ TEMP_MEASURE_TIEMOUT_EVT;
+	}
+	
+	if(events & TEMP_MEAUSRE_START_EVT){
+		printf("start temp \n");
+		startTempStatus();
+		return events ^ TEMP_MEAUSRE_START_EVT;
+	}
+	
+	if(events & TEMP_MEASUERING_EVT){
+		printf("ing temp \n");
+		ingTempStatus();
+		return events ^ TEMP_MEASUERING_EVT;
+	}
+	
+	if(events & TEMP_MEASURE_READY_EVT){
+		printf("ready temp \n");
+		readyTempStatus();
+		return events ^ TEMP_MEASURE_READY_EVT;
+	}
 	if(events & TEMP_PACKET_SEND_EVT){
-		uint16 random;
-		random = (uint16)(((float)osal_rand() / 65535) * tempPacketTimeWindow * tempPacketSendTimeDelay) ;
-		printf("random window:%u\n",random);
+//		uint16 random;
+//		random = (uint16)(((float)osal_rand() / 65535) * tempPacketTimeWindow * tempPacketSendTimeDelay) ;
+//		printf("random window:%u\n",random);
 		TempPacketSendHandler();
-		osal_start_timerEx(GenericApp_TaskID, TEMP_PACKET_SEND_EVT, tempPacketSendTimeDelay + random);
+//		osal_start_timerEx(GenericApp_TaskID, TEMP_PACKET_SEND_EVT, tempPacketSendTimeDelay + random);
 		return events ^ TEMP_PACKET_SEND_EVT;
 	}
 
@@ -438,97 +477,10 @@ static void GenericApp_ProcessZDOMsgs( zdoIncomingMsg_t *inMsg )
   }
 }
 
-/*********************************************************************
- * @fn      GenericApp_HandleKeys
- *
- * @brief   Handles all key events for this device.
- *
- * @param   shift - true if in shift/alt.
- * @param   keys - bit field for key events. Valid entries:
- *                 HAL_KEY_SW_4
- *                 HAL_KEY_SW_3
- *                 HAL_KEY_SW_2
- *                 HAL_KEY_SW_1
- *
- * @return  none
- */
+
 static void GenericApp_HandleKeys( uint8 shift, uint8 keys )
 {
-  zAddrType_t dstAddr;
-
-  // Shift is used to make each button/switch dual purpose.
-  if ( shift )
-  {
-    if ( keys & HAL_KEY_SW_1 )
-    {
-    }
-    if ( keys & HAL_KEY_SW_2 )
-    {
-    }
-    if ( keys & HAL_KEY_SW_3 )
-    {
-    }
-    if ( keys & HAL_KEY_SW_4 )
-    {
-    }
-  }
-  else
-  {
-    if ( keys & HAL_KEY_SW_1 )
-    {
-#if defined( SWITCH1_BIND )
-      // We can use SW1 to simulate SW2 for devices that only have one switch,
-      keys |= HAL_KEY_SW_2;
-#elif defined( SWITCH1_MATCH )
-      // or use SW1 to simulate SW4 for devices that only have one switch
-      keys |= HAL_KEY_SW_4;
-#else
-      // Normally, SW1 changes the rate that messages are sent
-      if ( txMsgDelay > 100 )
-      {
-        // Cut the message TX delay in half
-        txMsgDelay /= 2;
-      }
-      else
-      {
-        // Reset to the default
-        txMsgDelay = GENERICAPP_SEND_MSG_TIMEOUT;
-      }
-#endif
-    }
-
-    if ( keys & HAL_KEY_SW_2 )
-    {
-      HalLedSet ( HAL_LED_4, HAL_LED_MODE_OFF );
-
-      // Initiate an End Device Bind Request for the mandatory endpoint
-      dstAddr.addrMode = Addr16Bit;
-      dstAddr.addr.shortAddr = 0x0000; // Coordinator
-      ZDP_EndDeviceBindReq( &dstAddr, NLME_GetShortAddr(),
-                            GenericApp_epDesc.endPoint,
-                            GENERICAPP_PROFID,
-                            GENERICAPP_MAX_CLUSTERS, (cId_t *)GenericApp_ClusterList,
-                            GENERICAPP_MAX_CLUSTERS, (cId_t *)GenericApp_ClusterList,
-                            FALSE );
-    }
-
-    if ( keys & HAL_KEY_SW_3 )
-    {
-    }
-
-    if ( keys & HAL_KEY_SW_4 )
-    {
-      HalLedSet ( HAL_LED_4, HAL_LED_MODE_OFF );
-      // Initiate a Match Description Request (Service Discovery)
-      dstAddr.addrMode = AddrBroadcast;
-      dstAddr.addr.shortAddr = NWK_BROADCAST_SHORTADDR;
-      ZDP_MatchDescReq( &dstAddr, NWK_BROADCAST_SHORTADDR,
-                        GENERICAPP_PROFID,
-                        GENERICAPP_MAX_CLUSTERS, (cId_t *)GenericApp_ClusterList,
-                        GENERICAPP_MAX_CLUSTERS, (cId_t *)GenericApp_ClusterList,
-                        FALSE );
-    }
-  }
+  
 }
 
 /*********************************************************************
@@ -590,7 +542,7 @@ static void TempPacketSendHandler(void){
 			len, //(byte)osal_strlen( theMessageData ) + 1,
 		(byte *) packet, 
 			&GenericApp_TransID, 
-			AF_DISCV_ROUTE|AF_ACK_REQUEST, AF_DEFAULT_RADIUS) == afStatus_SUCCESS)
+			AF_DISCV_ROUTE, AF_DEFAULT_RADIUS) == afStatus_SUCCESS)
 		{
 			// Successfully requested to be sent.
 			HalLedBlink(HAL_LED_4, 1, 50, 500);
@@ -611,7 +563,7 @@ static void TempPacketSendHandler(void){
 static void TempSampleCfg(void){
 //	TR0 				= 0X01; 					/*这里我让AD和温度传感器相连*/
 //	ATEST				= 0X01; 					/*启动温度传感器*/
-	
+//	tempStatus = TEMP_MEAUSRE_START_STATUS;
 
 }
 
@@ -628,13 +580,13 @@ static int16 readTemp(){
 	float temp;
 	//设置分辨率
 	Set_Resolution(RESOLUTION_T11);
-	temp = SHT2X_MeasureNHM(TEMP_MEASURE_N_MASTER);
+	temp = SHT2X_StartMeasureNHM(TEMP_MEASURE_N_MASTER);
     res = (int16) (temp*100);
 	printf("%d,%02d\n",res/100,res %100);
 
 	float rh;
 	Set_Resolution(RESOLUTION_RH10);
-	rh = SHT2X_MeasureNHM(HUMI_MEASURE_N_MASTER);
+	rh = SHT2X_StartMeasureNHM(HUMI_MEASURE_N_MASTER);
 	printf("%d\n",(int16)rh);
 
 	return res;
@@ -696,6 +648,64 @@ static uint8* buildTempSendPacket(uint8 *len){
 	
 }
 
+static void initTempStatus(void){
+}
+
+static void startTempStatus(void){
+
+	if(SHT2X_StartMeasureNHM(TEMP_MEASURE_N_MASTER)){
+		osal_start_timerEx(GenericApp_TaskID, TEMP_MEASUERING_EVT, TEMP_MEASURE_WAIT_TIMEOUT);
+		
+	}else{
+		osal_start_timerEx(GenericApp_TaskID, TEMP_MEAUSRE_START_EVT, TEMP_MEASURE_RESTART_TIMEOUT);
+	}
+
+}
+static void ingTempStatus(void){
+	if(SHT2X_MeasureReady(TEMP_MEASURE_N_MASTER)){
+		osal_set_event(GenericApp_TaskID, TEMP_MEASURE_READY_EVT);
+	}
+	else{
+		osal_start_timerEx(GenericApp_TaskID, TEMP_MEASUERING_EVT, TEMP_MEASURE_WAIT_TIMEOUT);
+	}
+	
+
+}
+static void readyTempStatus(void){
+	osal_stop_timerEx(GenericApp_TaskID, TEMP_MEASURE_TIEMOUT_EVT);
+	uint16 temp;
+	sendData_t dataPacket;
+	temp = SHT2X_ReadMeasure(TEMP_MEASURE_N_MASTER);
+	printf("%d,%02d\n",temp/100,temp %100);
+	dataPacket.utcSecs = osal_getClock();
+	dataPacket.temp = temp;
+	uint8 res;
+	res = QueueIn(&tempQueue,&dataPacket);
+	if(res == QueueFull){
+		printf("temp queue full");
+	}
+	//重启定时器
+	osal_start_timerEx(GenericApp_TaskID, SAMPLE_TEMP_EVT, sampleTempTimeDelay);
+				
+}
+static void failedTempStatus(void){
+	osal_stop_timerEx(GenericApp_TaskID, TEMP_MEASUERING_EVT);
+	osal_stop_timerEx(GenericApp_TaskID, TEMP_MEAUSRE_START_EVT);
+	uint16 temp;
+	sendData_t dataPacket;
+	temp = 0xFFFF;
+	dataPacket.utcSecs = osal_getClock();
+	dataPacket.temp = temp;
+	uint8 res;
+	res = QueueIn(&tempQueue,&dataPacket);
+	if(res == QueueFull){
+		printf("temp queue full");
+//		osal_stop_timerEx(uint8 task_id, uint16 event_id)
+	}
+		//重启定时器
+		osal_start_timerEx(GenericApp_TaskID, SAMPLE_TEMP_EVT, sampleTempTimeDelay);
+	
+}
 
 
 
