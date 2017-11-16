@@ -78,7 +78,7 @@ static void zmain_lcd_init( void );
  */
 int main( void )
 {
-  // Turn off interrupts
+  // Turn off interrupts 
   osal_int_disable( INTS_ALL );
 
   // Initialization for board related stuff such as LEDs
