@@ -15,5 +15,6 @@ void SEND_1(void);
 char IIC_Wait_Ack(void);
 void Write_Acknowledge(void);
 void IIC_Send_Byte(uint8);
+void IIC_Config(void);
 uint8 IIC_Read_Byte(void);
 #endif

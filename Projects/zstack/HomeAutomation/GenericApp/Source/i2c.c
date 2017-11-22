@@ -5,13 +5,13 @@
 /*我的管脚定义是
 SDA定义为P1.5
 //SCL定义为P1.4 */
-#define SCL 	P0_6
-#define SDA 	P0_7
-#define PDIR 	P0DIR
-#define SDADIR  0x80
-#define SCLDIR  0x40
+#define SCL 	P1_5
+#define SDA 	P1_4
+#define PDIR 	P1DIR
+#define PSEL    P1SEL
+#define SCLDIR  0x20
+#define SDADIR  0x10
 
-//#define SCL 	P0_1
 //#define SDA 	P0_0
 //#define PDIR 	P0DIR
 //#define SCLDIR  0x02
@@ -50,6 +50,10 @@ P1口DIR应该是0010 0000
 即0x20,其他可以依次类推......
 啰嗦完毕,继续程序....
 */
+
+void IIC_Config(void){
+    PSEL &=~(SDADIR|SCLDIR);
+}
 void WriteSDA1(void)//SDA 输出1,相当于51里面的SDA=1
 {
          PDIR |= SDADIR;

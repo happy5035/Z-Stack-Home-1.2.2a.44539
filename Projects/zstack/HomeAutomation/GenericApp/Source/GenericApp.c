@@ -266,6 +266,8 @@ void GenericApp_Init( uint8 task_id )
 //  ZDO_RegisterForZDOMsg( GenericApp_TaskID, Match_Desc_rsp );
 	//初始化模块extAddr
 	ZMacGetReq( ZMacExtAddr, extAddr );
+    //温度数据队列初始化
+    QueueInit(&tempQueue);
 
 //    TempSampleCfg();
 }
@@ -356,8 +358,6 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
 				osal_start_reload_timer(GenericApp_TaskID, TEMP_PACKET_SEND_EVT, tempPacketSendTimeDelay);
                 
 				TempSampleCfg();
-                //温度数据队列初始化
-                QueueInit(&tempQueue);
 				osal_pwrmgr_device(PWRMGR_BATTERY);
 			}
             
@@ -568,14 +568,7 @@ static void TempSampleCfg(void){
 }
 
 static int16 readTemp(){
-//	uint16 adcValue;
-//	adcValue = 0;
-//    float re;
-//	
-//	TR0 |= 0x01;
-//	adcValue = HalAdcRead(HAL_ADC_CHANNEL_TEMP, HAL_ADC_RESOLUTION_12);
-//    re = ((int16)adcValue - 1480) / 4.0  + 25;
-//	return	(int16)(re*100);
+
     int16 res;
 	float temp;
 	//设置分辨率
@@ -672,6 +665,8 @@ static void ingTempStatus(void){
 
 }
 static void readyTempStatus(void){
+	osal_stop_timerEx(GenericApp_TaskID, TEMP_MEAUSRE_START_EVT);
+	osal_stop_timerEx(GenericApp_TaskID, TEMP_MEASUERING_EVT);
 	osal_stop_timerEx(GenericApp_TaskID, TEMP_MEASURE_TIEMOUT_EVT);
 	uint16 temp;
 	sendData_t dataPacket;
@@ -689,8 +684,9 @@ static void readyTempStatus(void){
 				
 }
 static void failedTempStatus(void){
-	osal_stop_timerEx(GenericApp_TaskID, TEMP_MEASUERING_EVT);
 	osal_stop_timerEx(GenericApp_TaskID, TEMP_MEAUSRE_START_EVT);
+	osal_stop_timerEx(GenericApp_TaskID, TEMP_MEASUERING_EVT);
+	osal_stop_timerEx(GenericApp_TaskID, TEMP_MEASURE_READY_EVT);
 	uint16 temp;
 	sendData_t dataPacket;
 	temp = 0xFFFF;

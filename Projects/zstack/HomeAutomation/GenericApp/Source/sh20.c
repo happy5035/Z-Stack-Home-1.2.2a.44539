@@ -2,6 +2,7 @@
 #include "user_printf.h"  
 bool SHT2X_StartMeasureNHM(char whatdo){//0xF3:温度测量，0xF5:湿度测量，都是非主机模式
     delay_us(50);
+    IIC_Config();
     IIC_Start();
     IIC_Send_Byte(0x80);
     if(IIC_Wait_Ack()==0){
