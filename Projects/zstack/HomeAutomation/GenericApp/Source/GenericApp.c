@@ -180,6 +180,8 @@ typedef struct{
 	uint8 status;
 }tempMeasureMsg_t;
 uint8 tempStatus = 0;
+uint32 lastSampleTempClock; //上次采集温度时间
+
 
 
 /*********************************************************************
@@ -379,10 +381,10 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
   }
   
 	if(events & SAMPLE_TEMP_EVT){
-		Set_Resolution(RESOLUTION_T11);
-		osal_start_timerEx(GenericApp_TaskID, TEMP_MEASURE_TIEMOUT_EVT, TEMP_MEASURE_FAILED_TIMEOUT);
-		osal_set_event(GenericApp_TaskID, TEMP_MEAUSRE_START_EVT);
-//		SampleTimeHandler();
+//		Set_Resolution(RESOLUTION_T11);
+//		osal_start_timerEx(GenericApp_TaskID, TEMP_MEASURE_TIEMOUT_EVT, TEMP_MEASURE_FAILED_TIMEOUT);
+//		osal_set_event(GenericApp_TaskID, TEMP_MEAUSRE_START_EVT);
+		SampleTimeHandler();
 		return events ^ SAMPLE_TEMP_EVT;
 	}
 	
@@ -521,7 +523,8 @@ static void SampleTimeHandler(void){
 	uint16 temp;
 	sendData_t dataPacket;
 	temp = readTemp();
-	dataPacket.utcSecs = osal_getClock();
+	dataPacket.utcSecs = lastSampleTempClock;
+	lastSampleTempClock = osal_getClock();
 	dataPacket.temp = temp;
 	uint8 res;
 	res = QueueIn(&tempQueue,&dataPacket);
@@ -529,6 +532,7 @@ static void SampleTimeHandler(void){
 		printf("temp queue full");
 //		osal_stop_timerEx(uint8 task_id, uint16 event_id)
 	}
+	osal_start_timerEx(GenericApp_TaskID, SAMPLE_TEMP_EVT, sampleTempTimeDelay);
 	
 }
 static void TempPacketSendHandler(void){
@@ -571,17 +575,22 @@ static int16 readTemp(){
 
     int16 res;
 	float temp;
-	//设置分辨率
-	Set_Resolution(RESOLUTION_T11);
-	temp = SHT2X_StartMeasureNHM(TEMP_MEASURE_N_MASTER);
-    res = (int16) (temp*100);
+	res = 0xFFFF;
+	if(SHT2X_MeasureReady(TEMP_MEASURE_N_MASTER)){
+		res = SHT2X_ReadMeasure(TEMP_MEASURE_N_MASTER);
+		
+	}
+//	temp = SHT2X_StartMeasureNHM(TEMP_MEASURE_N_MASTER);
+//    res = (int16) (temp*100);
 	printf("%d,%02d\n",res/100,res %100);
 
-	float rh;
-	Set_Resolution(RESOLUTION_RH10);
-	rh = SHT2X_StartMeasureNHM(HUMI_MEASURE_N_MASTER);
-	printf("%d\n",(int16)rh);
-
+//	float rh;
+//	Set_Resolution(RESOLUTION_RH10);
+//	rh = SHT2X_StartMeasureNHM(HUMI_MEASURE_N_MASTER);
+//	printf("%d\n",(int16)rh);
+	//设置分辨率
+	Set_Resolution(RESOLUTION_T11);
+	SHT2X_StartMeasureNHM(TEMP_MEASURE_N_MASTER);
 	return res;
 
 }

@@ -5,12 +5,19 @@
 /*我的管脚定义是
 SDA定义为P1.5
 //SCL定义为P1.4 */
-#define SCL 	P1_5
-#define SDA 	P1_4
-#define PDIR 	P1DIR
-#define PSEL    P1SEL
-#define SCLDIR  0x20
-#define SDADIR  0x10
+//#define SCL 	P1_5
+//#define SDA 	P1_4
+//#define PDIR 	P1DIR
+//#define PSEL    P1SEL
+//#define SCLDIR  0x20
+//#define SDADIR  0x10
+
+#define SCL 	P0_6
+#define SCLDIR  0x40
+#define SDA 	P0_7
+#define SDADIR  0x80
+#define PDIR 	P0DIR
+#define PSEL    P0SEL
 
 //#define SDA 	P0_0
 //#define PDIR 	P0DIR
