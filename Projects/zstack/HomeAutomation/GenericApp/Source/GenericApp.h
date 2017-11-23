@@ -88,6 +88,19 @@ extern "C"
 #define TEMP_MEASUERING_EVT		 	  0x0080
 #define TEMP_MEASURE_READY_EVT	  	  0x0100
 
+#define SAMPLE_HUM_EVT				  0x0200
+#define SAMPLE_TASK_EVT	  	  		  0x0400
+
+//采集任务
+#define SAMPLE_TEMP_START_TASK 		  0x01
+#define SAMPLE_TEMP_READY_TASK 		  0x02
+#define SAMPLE_HUM_START_TASK 		  0x04
+#define SAMPLE_HUM_READY_TASK 		  0x08
+
+
+
+
+
 #if defined( IAR_ARMCM3_LM )
 #define GENERICAPP_RTOS_MSG_EVT       0x0002
 #endif  

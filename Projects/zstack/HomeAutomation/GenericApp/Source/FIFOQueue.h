@@ -16,7 +16,7 @@ extern "C"
 typedef struct
 {
 	UTCTime utcSecs;
-	int16  temp;
+	int16  data;
 }sendData_t;
 
 

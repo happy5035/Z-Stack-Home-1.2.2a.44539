@@ -152,14 +152,16 @@ afAddrType_t GenericApp_BroadcastAddr;
 // Number of recieved messages
 static uint16 rxMsgCount;
 
-// Time interval between sending messages
-static uint32   txMsgDelay = GENERICAPP_SEND_MSG_TIMEOUT;
 uint32  sampleTempTimeDelay = 1000;				//1s
 uint32 tempPacketSendTimeDelay = 10000;			//30s
 uint8 tempPacketSendRetrayTimes = 0;			//温度数据包重复发送次数
 uint8 tempPacketSendPacketTransID;
 uint32 syncTimeDealy = (uint32)1000*60;
 uint16 tempPacketTimeWindow = 1;
+
+uint32 sampleHumTimeDelay = 10000;// 60s一次采集湿度数据
+
+uint8 sampleTask = 0x00;
 
 //发送数据包
 typedef struct
@@ -174,6 +176,9 @@ typedef struct
 FifoQueue tempQueue;
 uint8 extAddr[Z_EXTADDR_LEN];
 tempPacket_t tempPacketHead; 
+//存储湿度数据
+static FifoQueue humQueue;
+
 
 typedef struct{
 	osal_event_hdr_t event;
@@ -181,6 +186,7 @@ typedef struct{
 }tempMeasureMsg_t;
 uint8 tempStatus = 0;
 uint32 lastSampleTempClock; //上次采集温度时间
+uint32 lastSampleHumClock; //上次采集湿度时间
 
 
 
@@ -190,17 +196,19 @@ uint32 lastSampleTempClock; //上次采集温度时间
 static void GenericApp_ProcessZDOMsgs( zdoIncomingMsg_t *inMsg );
 static void GenericApp_HandleKeys( byte shift, byte keys );
 static void GenericApp_MessageMSGCB( afIncomingMSGPacket_t *pckt );
-static void SampleTimeHandler(void);
+static void SampleTempHandler(void);
+static void SampleHumHandler(void);
 static void TempPacketSendHandler(void);
 static void TempSampleCfg(void);
-static int16 readTemp(void);
-static uint16 readVcc(void);
-static uint8* buildTempSendPacket(uint8* len);
-static void initTempStatus(void);
-static void startTempStatus(void);
-static void ingTempStatus(void);
-static void readyTempStatus(void);
-static void failedTempStatus(void);
+static void SampleTask(void);
+static int16 ReadTemp(void);
+static int16 ReadHum(void);
+static uint16 ReadVcc(void);
+static uint8* BuildTempSendPacket(uint8* len);
+static void StartTempStatus(void);
+static void IngTempStatus(void);
+static void ReadyTempStatus(void);
+static void FailedTempStatus(void);
 
 
 /*********************************************************************
@@ -270,6 +278,7 @@ void GenericApp_Init( uint8 task_id )
 	ZMacGetReq( ZMacExtAddr, extAddr );
     //温度数据队列初始化
     QueueInit(&tempQueue);
+	QueueInit(&humQueue);
 
 //    TempSampleCfg();
 }
@@ -357,8 +366,9 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
 				HalLedSet(HAL_LED_3, HAL_LED_MODE_ON);
 				//开启采样和发送定时器
 				osal_start_timerEx(GenericApp_TaskID, SAMPLE_TEMP_EVT, sampleTempTimeDelay);
+                osal_start_reload_timer(GenericApp_TaskID, SAMPLE_HUM_EVT, sampleHumTimeDelay);
 				osal_start_reload_timer(GenericApp_TaskID, TEMP_PACKET_SEND_EVT, tempPacketSendTimeDelay);
-                
+				
 				TempSampleCfg();
 				osal_pwrmgr_device(PWRMGR_BATTERY);
 			}
@@ -384,33 +394,47 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
 //		Set_Resolution(RESOLUTION_T11);
 //		osal_start_timerEx(GenericApp_TaskID, TEMP_MEASURE_TIEMOUT_EVT, TEMP_MEASURE_FAILED_TIMEOUT);
 //		osal_set_event(GenericApp_TaskID, TEMP_MEAUSRE_START_EVT);
-		SampleTimeHandler();
+//		SampleTempHandler();
+		sampleTask |= SAMPLE_TEMP_START_TASK | SAMPLE_TEMP_READY_TASK;
+		SampleTask();
 		return events ^ SAMPLE_TEMP_EVT;
 	}
 	
+	if(events & SAMPLE_HUM_EVT){
+//		SampleHumHandler();
+		sampleTask |= SAMPLE_HUM_START_TASK | SAMPLE_HUM_READY_TASK;
+		SampleTask();
+		return events ^ SAMPLE_HUM_EVT;
+	}
+	
+	if(events & SAMPLE_TASK_EVT){
+//		SampleHumHandler();
+		SampleTask();
+		return events ^ SAMPLE_TASK_EVT;
+	}
 
 	if(events & TEMP_MEASURE_TIEMOUT_EVT){
 		printf("failed temp \n");
-		failedTempStatus();
+		FailedTempStatus();
 //		tempStatus = TEMP_MEASURE_FAILED_STATUS;
 		return events ^ TEMP_MEASURE_TIEMOUT_EVT;
 	}
 	
 	if(events & TEMP_MEAUSRE_START_EVT){
 		printf("start temp \n");
-		startTempStatus();
+		StartTempStatus();
 		return events ^ TEMP_MEAUSRE_START_EVT;
 	}
 	
 	if(events & TEMP_MEASUERING_EVT){
 		printf("ing temp \n");
-		ingTempStatus();
+		IngTempStatus();
 		return events ^ TEMP_MEASUERING_EVT;
 	}
 	
 	if(events & TEMP_MEASURE_READY_EVT){
 		printf("ready temp \n");
-		readyTempStatus();
+		ReadyTempStatus();
 		return events ^ TEMP_MEASURE_READY_EVT;
 	}
 	if(events & TEMP_PACKET_SEND_EVT){
@@ -517,15 +541,55 @@ static void GenericApp_MessageMSGCB( afIncomingMSGPacket_t *pkt )
   }
 }
 
+/*   S A M P L E   T A S K   */
+/*-------------------------------------------------------------------------
+    采集任务
+-------------------------------------------------------------------------*/
+static void SampleTask(void){
+	while(sampleTask){
+		if(sampleTask & 0x01){
+			Set_Resolution(RESOLUTION_T11);
+			SHT2X_StartMeasureNHM(TEMP_MEASURE_N_MASTER);
+			sampleTask ^= 0x01;
+			break;
+		}
+		if(sampleTask & 0x02){
+			SampleTempHandler();
+			sampleTask ^= 0x02;
+			break;
+		}
+		if(sampleTask & 0x04){
+			Set_Resolution(RESOLUTION_T11);
+			SHT2X_StartMeasureNHM(HUMI_MEASURE_N_MASTER);
+			sampleTask ^= 0x04;
+			break;
+		}
+		if(sampleTask & 0x08){
+			SampleHumHandler();
+			sampleTask ^= 0x08;
+			break;
+		}
+		//错误的状态
+		sampleTask = 0;
+	}
+	if(sampleTask){
+		osal_start_timerEx(GenericApp_TaskID, SAMPLE_TASK_EVT, 100);
+	}
+}
 
-static void SampleTimeHandler(void){
+
+/*   S A M P L E   T E M P   H A N D L E R   */
+/*-------------------------------------------------------------------------
+    温度采集处理函数
+-------------------------------------------------------------------------*/
+static void SampleTempHandler(void){
 
 	uint16 temp;
 	sendData_t dataPacket;
-	temp = readTemp();
+	temp = ReadTemp();
 	dataPacket.utcSecs = lastSampleTempClock;
 	lastSampleTempClock = osal_getClock();
-	dataPacket.temp = temp;
+	dataPacket.data = temp;
 	uint8 res;
 	res = QueueIn(&tempQueue,&dataPacket);
 	if(res == QueueFull){
@@ -535,11 +599,31 @@ static void SampleTimeHandler(void){
 	osal_start_timerEx(GenericApp_TaskID, SAMPLE_TEMP_EVT, sampleTempTimeDelay);
 	
 }
+
+/*   S A M P L E   H U M   H A N D L E R   */
+/*-------------------------------------------------------------------------
+    湿度采集处理函数
+-------------------------------------------------------------------------*/
+static void SampleHumHandler(void){
+	uint16 hum;
+	sendData_t dataPacket;
+	hum = ReadHum();
+	dataPacket.data = hum;
+	dataPacket.utcSecs = lastSampleHumClock;
+	lastSampleHumClock = osal_getClock();
+	uint8 res = QueueIn(&humQueue, &dataPacket);
+	
+	if(res == QueueFull){
+		printf("hum queue full");
+//		osal_stop_timerEx(uint8 task_id, uint16 event_id)
+	}
+}
+
 static void TempPacketSendHandler(void){
 	
 	uint8* packet;
 	uint8 len;
-    packet = buildTempSendPacket(&len);
+    packet = BuildTempSendPacket(&len);
 	if(packet){
 		if (AF_DataRequest(&GenericApp_DstAddr, &GenericApp_epDesc, 
 			GENERICAPP_CLUSTERID, 
@@ -571,10 +655,9 @@ static void TempSampleCfg(void){
 
 }
 
-static int16 readTemp(){
+static int16 ReadTemp(){
 
     int16 res;
-	float temp;
 	res = 0xFFFF;
 	if(SHT2X_MeasureReady(TEMP_MEASURE_N_MASTER)){
 		res = SHT2X_ReadMeasure(TEMP_MEASURE_N_MASTER);
@@ -582,20 +665,33 @@ static int16 readTemp(){
 	}
 //	temp = SHT2X_StartMeasureNHM(TEMP_MEASURE_N_MASTER);
 //    res = (int16) (temp*100);
-	printf("%d,%02d\n",res/100,res %100);
+	printf("temp:%d.%02d\n",res/100,res %100);
 
 //	float rh;
 //	Set_Resolution(RESOLUTION_RH10);
 //	rh = SHT2X_StartMeasureNHM(HUMI_MEASURE_N_MASTER);
 //	printf("%d\n",(int16)rh);
 	//设置分辨率
-	Set_Resolution(RESOLUTION_T11);
-	SHT2X_StartMeasureNHM(TEMP_MEASURE_N_MASTER);
+//	Set_Resolution(RESOLUTION_T11);
+//	SHT2X_StartMeasureNHM(TEMP_MEASURE_N_MASTER);
 	return res;
 
 }
 
-static uint16 readVcc(void){
+static int16 ReadHum(void){
+	int16 res;
+	res = 0xFFFF;
+	if(SHT2X_MeasureReady(HUMI_MEASURE_N_MASTER)){
+		res = SHT2X_ReadMeasure(HUMI_MEASURE_N_MASTER);
+	}
+
+//	Set_Resolution(RESOLUTION_RH11);
+//	SHT2X_StartMeasureNHM(HUMI_MEASURE_N_MASTER);
+	printf("hum:%d.%02d\n",res/100,res %100);
+	return res;
+}
+
+static uint16 ReadVcc(void){
 	HalAdcSetReference(HAL_ADC_REF_125V);
 	uint16 adcValue;
 	float vcc;
@@ -610,8 +706,8 @@ static uint16 readVcc(void){
 /**
 *	构造发送数据包，返回数据包制作并修改数据包长度
 */
-static uint8* buildTempSendPacket(uint8 *len){
-	tempPacketHead.vdd = readVcc();
+static uint8* BuildTempSendPacket(uint8 *len){
+	tempPacketHead.vdd = ReadVcc();
 	uint8 _len;
 	_len = tempQueue.count;
 	if(_len > TEMP_PACKET_SEND_SIZE){
@@ -639,8 +735,8 @@ static uint8* buildTempSendPacket(uint8 *len){
 		osal_memcpy(packet,&tempPacketHead,sizeof(tempPacketHead));
 		int i;
 		for (i = 0; i < _len; i++){
-			*(packet+sizeof(tempPacketHead) + 2*i) = LO_UINT16(start->temp);
-			*(packet+sizeof(tempPacketHead) + 2*i +1) = HI_UINT16(start->temp);
+			*(packet+sizeof(tempPacketHead) + 2*i) = LO_UINT16(start->data);
+			*(packet+sizeof(tempPacketHead) + 2*i +1) = HI_UINT16(start->data);
 		}
 		return packet;
 	}else{
@@ -650,10 +746,7 @@ static uint8* buildTempSendPacket(uint8 *len){
 	
 }
 
-static void initTempStatus(void){
-}
-
-static void startTempStatus(void){
+static void StartTempStatus(void){
 
 	if(SHT2X_StartMeasureNHM(TEMP_MEASURE_N_MASTER)){
 		osal_start_timerEx(GenericApp_TaskID, TEMP_MEASUERING_EVT, TEMP_MEASURE_WAIT_TIMEOUT);
@@ -663,7 +756,7 @@ static void startTempStatus(void){
 	}
 
 }
-static void ingTempStatus(void){
+static void IngTempStatus(void){
 	if(SHT2X_MeasureReady(TEMP_MEASURE_N_MASTER)){
 		osal_set_event(GenericApp_TaskID, TEMP_MEASURE_READY_EVT);
 	}
@@ -673,7 +766,7 @@ static void ingTempStatus(void){
 	
 
 }
-static void readyTempStatus(void){
+static void ReadyTempStatus(void){
 	osal_stop_timerEx(GenericApp_TaskID, TEMP_MEAUSRE_START_EVT);
 	osal_stop_timerEx(GenericApp_TaskID, TEMP_MEASUERING_EVT);
 	osal_stop_timerEx(GenericApp_TaskID, TEMP_MEASURE_TIEMOUT_EVT);
@@ -682,7 +775,7 @@ static void readyTempStatus(void){
 	temp = SHT2X_ReadMeasure(TEMP_MEASURE_N_MASTER);
 	printf("%d,%02d\n",temp/100,temp %100);
 	dataPacket.utcSecs = osal_getClock();
-	dataPacket.temp = temp;
+	dataPacket.data = temp;
 	uint8 res;
 	res = QueueIn(&tempQueue,&dataPacket);
 	if(res == QueueFull){
@@ -692,7 +785,7 @@ static void readyTempStatus(void){
 	osal_start_timerEx(GenericApp_TaskID, SAMPLE_TEMP_EVT, sampleTempTimeDelay);
 				
 }
-static void failedTempStatus(void){
+static void FailedTempStatus(void){
 	osal_stop_timerEx(GenericApp_TaskID, TEMP_MEAUSRE_START_EVT);
 	osal_stop_timerEx(GenericApp_TaskID, TEMP_MEASUERING_EVT);
 	osal_stop_timerEx(GenericApp_TaskID, TEMP_MEASURE_READY_EVT);
@@ -700,7 +793,7 @@ static void failedTempStatus(void){
 	sendData_t dataPacket;
 	temp = 0xFFFF;
 	dataPacket.utcSecs = osal_getClock();
-	dataPacket.temp = temp;
+	dataPacket.data = temp;
 	uint8 res;
 	res = QueueIn(&tempQueue,&dataPacket);
 	if(res == QueueFull){

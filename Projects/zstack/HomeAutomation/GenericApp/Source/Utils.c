@@ -173,7 +173,7 @@ void printTempPacket(sendData_t * pkt){
 //	dec2word(utcTime.seconds, t);
 //	printDataLen(t, 2);
 //	printChar(',');
-	int16 _temp = pkt->temp;
+	int16 _temp = pkt->data;
 	if(_temp <0){
 		printChar('-');
 		_temp = 0 - _temp;
