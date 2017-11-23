@@ -168,14 +168,17 @@ typedef struct
 {
 	uint8 	extAddr[Z_EXTADDR_LEN];
 	uint16 	vdd;
-	UTCTime 	startTime;
-	uint8 	numbers;
+	UTCTime tempStartTime;
 	uint16	sampleFreq;
+	uint8 	tempNumbers;
+	UTCTime humStartTime;
+	uint16	humFreq;
+	uint8 	humNumbers;
 }tempPacket_t;
 //存储温度数据
 FifoQueue tempQueue;
 uint8 extAddr[Z_EXTADDR_LEN];
-tempPacket_t tempPacketHead; 
+tempPacket_t packetHead; 
 //存储湿度数据
 static FifoQueue humQueue;
 
@@ -205,10 +208,6 @@ static int16 ReadTemp(void);
 static int16 ReadHum(void);
 static uint16 ReadVcc(void);
 static uint8* BuildTempSendPacket(uint8* len);
-static void StartTempStatus(void);
-static void IngTempStatus(void);
-static void ReadyTempStatus(void);
-static void FailedTempStatus(void);
 
 
 /*********************************************************************
@@ -413,30 +412,8 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
 		return events ^ SAMPLE_TASK_EVT;
 	}
 
-	if(events & TEMP_MEASURE_TIEMOUT_EVT){
-		printf("failed temp \n");
-		FailedTempStatus();
-//		tempStatus = TEMP_MEASURE_FAILED_STATUS;
-		return events ^ TEMP_MEASURE_TIEMOUT_EVT;
-	}
+
 	
-	if(events & TEMP_MEAUSRE_START_EVT){
-		printf("start temp \n");
-		StartTempStatus();
-		return events ^ TEMP_MEAUSRE_START_EVT;
-	}
-	
-	if(events & TEMP_MEASUERING_EVT){
-		printf("ing temp \n");
-		IngTempStatus();
-		return events ^ TEMP_MEASUERING_EVT;
-	}
-	
-	if(events & TEMP_MEASURE_READY_EVT){
-		printf("ready temp \n");
-		ReadyTempStatus();
-		return events ^ TEMP_MEASURE_READY_EVT;
-	}
 	if(events & TEMP_PACKET_SEND_EVT){
 //		uint16 random;
 //		random = (uint16)(((float)osal_rand() / 65535) * tempPacketTimeWindow * tempPacketSendTimeDelay) ;
@@ -547,33 +524,33 @@ static void GenericApp_MessageMSGCB( afIncomingMSGPacket_t *pkt )
 -------------------------------------------------------------------------*/
 static void SampleTask(void){
 	while(sampleTask){
-		if(sampleTask & 0x01){
+		if(sampleTask & SAMPLE_TEMP_START_TASK){
 			Set_Resolution(RESOLUTION_T11);
 			SHT2X_StartMeasureNHM(TEMP_MEASURE_N_MASTER);
-			sampleTask ^= 0x01;
+			sampleTask ^= SAMPLE_TEMP_START_TASK;
 			break;
 		}
-		if(sampleTask & 0x02){
+		if(sampleTask & SAMPLE_TEMP_READY_TASK){
 			SampleTempHandler();
-			sampleTask ^= 0x02;
+			sampleTask ^= SAMPLE_TEMP_READY_TASK;
 			break;
 		}
-		if(sampleTask & 0x04){
+		if(sampleTask & SAMPLE_HUM_START_TASK){
 			Set_Resolution(RESOLUTION_T11);
 			SHT2X_StartMeasureNHM(HUMI_MEASURE_N_MASTER);
-			sampleTask ^= 0x04;
+			sampleTask ^= SAMPLE_HUM_START_TASK;
 			break;
 		}
-		if(sampleTask & 0x08){
+		if(sampleTask & SAMPLE_HUM_READY_TASK){
 			SampleHumHandler();
-			sampleTask ^= 0x08;
+			sampleTask ^= SAMPLE_HUM_READY_TASK;
 			break;
 		}
 		//错误的状态
 		sampleTask = 0;
 	}
 	if(sampleTask){
-		osal_start_timerEx(GenericApp_TaskID, SAMPLE_TASK_EVT, 100);
+		osal_start_timerEx(GenericApp_TaskID, SAMPLE_TASK_EVT, SAMPLE_TASK_WAITE_TIMEOUT);
 	}
 }
 
@@ -707,103 +684,90 @@ static uint16 ReadVcc(void){
 *	构造发送数据包，返回数据包制作并修改数据包长度
 */
 static uint8* BuildTempSendPacket(uint8 *len){
-	tempPacketHead.vdd = ReadVcc();
-	uint8 _len;
-	_len = tempQueue.count;
-	if(_len > TEMP_PACKET_SEND_SIZE){
-		_len = TEMP_PACKET_SEND_SIZE;
-	}
-	sendData_t* start ;
 	uint8* packet;
-	start = &tempQueue.dat[tempQueue.front];
-	osal_memcpy(tempPacketHead.extAddr, extAddr, Z_EXTADDR_LEN);
-	tempPacketHead.startTime = start->utcSecs;
-	tempPacketHead.numbers = _len;
-	tempPacketHead.sampleFreq = sampleTempTimeDelay;
-	printf("vcc:%d\n",tempPacketHead.vdd);
-	printf("startTime:%02x%02x%02x%02x\n"
-		,BREAK_UINT32(tempPacketHead.startTime, 3)
-		,BREAK_UINT32(tempPacketHead.startTime, 2)
-		,BREAK_UINT32(tempPacketHead.startTime, 1)
-		,BREAK_UINT32(tempPacketHead.startTime, 0)
-		);
-	printf("numbers:%d\n",tempPacketHead.numbers);
-	printf("sampleFreq:%d\n",tempPacketHead.sampleFreq);
-	*len = _len*sizeof(int16)  + sizeof(tempPacket_t);
+	uint8 temp_len;
+	uint8 hum_len;
+	sendData_t* temp_start ;
+	sendData_t* hum_start ;
+
+	packetHead.vdd = ReadVcc();
+
+	// temp header
+	temp_len = tempQueue.count;
+	if(temp_len > TEMP_PACKET_SEND_SIZE){
+		temp_len = TEMP_PACKET_SEND_SIZE;
+	}
+	temp_start = &tempQueue.dat[tempQueue.front];
+	osal_memcpy(packetHead.extAddr, extAddr, Z_EXTADDR_LEN);
+	packetHead.tempStartTime = temp_start->utcSecs;
+	packetHead.tempNumbers = temp_len;
+	packetHead.sampleFreq = sampleTempTimeDelay;
+	printf("vcc:%d\n",packetHead.vdd);
+	printf("temp packet header:\n");
+//	printf("startTime:%02x%02x%02x%02x\n"
+//		,BREAK_UINT32(packetHead.tempStartTime, 3)
+//		,BREAK_UINT32(packetHead.tempStartTime, 2)
+//		,BREAK_UINT32(packetHead.tempStartTime, 1)
+//		,BREAK_UINT32(packetHead.tempStartTime, 0)
+//		);
+	printf("sampleFreq:%d\n",packetHead.sampleFreq);
+	printf("numbers:%d\n",packetHead.tempNumbers);
+	
+	// Humidity header
+	hum_len = humQueue.count;
+	if(hum_len > HUM_PACKET_SEND_SIZE){
+		hum_len = HUM_PACKET_SEND_SIZE;
+
+	}
+	hum_start = &humQueue.dat[humQueue.front];
+	packetHead.humStartTime = hum_start->utcSecs;
+	packetHead.humFreq = sampleHumTimeDelay;
+	packetHead.humNumbers = hum_len;
+	printf("hum packet header:\n");
+//	printf("startTime:%02x%02x%02x%02x\n"
+//		,BREAK_UINT32(packetHead.humStartTime, 3)
+//		,BREAK_UINT32(packetHead.humStartTime, 2)
+//		,BREAK_UINT32(packetHead.humStartTime, 1)
+//		,BREAK_UINT32(packetHead.humStartTime, 0)
+//		);
+	printf("sampleFreq:%d\n",packetHead.humFreq);
+	printf("numbers:%d\n",packetHead.humNumbers);
+
+	
+	//复制数据到发送数据包
+	*len = sizeof(tempPacket_t) + sizeof(int16) * temp_len + sizeof(16) * hum_len;
 	packet = osal_mem_alloc(*len);
+	uint8* _packet;
+	_packet = packet;
 	if(packet){
-		osal_memcpy(packet,&tempPacketHead,sizeof(tempPacketHead));
+		osal_memcpy(packet,&packetHead,sizeof(tempPacket_t));
+		_packet += sizeof(tempPacket_t);
 		int i;
-		for (i = 0; i < _len; i++){
-			*(packet+sizeof(tempPacketHead) + 2*i) = LO_UINT16(start->data);
-			*(packet+sizeof(tempPacketHead) + 2*i +1) = HI_UINT16(start->data);
+		for (i = 0; i < temp_len; i++){
+			*(_packet ++) = LO_UINT16(temp_start->data);
+			*(_packet ++) = HI_UINT16(temp_start->data);
+			if(QueueOut(&tempQueue, temp_start) == QueueEmpty){
+				printf("tempQueue empty\n");
+				return NULL;
+			}
+		}
+		
+		for (i = 0; i < hum_len; i++){
+			*(_packet ++) = LO_UINT16(hum_start->data);
+			*(_packet ++) = HI_UINT16(hum_start->data);
+			
+			if(QueueOut(&humQueue, hum_start) == QueueEmpty){
+				printf("humQueue empty\n");
+				return NULL;
+			}
 		}
 		return packet;
 	}else{
 		return NULL;
 	}
-
 	
 }
 
-static void StartTempStatus(void){
-
-	if(SHT2X_StartMeasureNHM(TEMP_MEASURE_N_MASTER)){
-		osal_start_timerEx(GenericApp_TaskID, TEMP_MEASUERING_EVT, TEMP_MEASURE_WAIT_TIMEOUT);
-		
-	}else{
-		osal_start_timerEx(GenericApp_TaskID, TEMP_MEAUSRE_START_EVT, TEMP_MEASURE_RESTART_TIMEOUT);
-	}
-
-}
-static void IngTempStatus(void){
-	if(SHT2X_MeasureReady(TEMP_MEASURE_N_MASTER)){
-		osal_set_event(GenericApp_TaskID, TEMP_MEASURE_READY_EVT);
-	}
-	else{
-		osal_start_timerEx(GenericApp_TaskID, TEMP_MEASUERING_EVT, TEMP_MEASURE_WAIT_TIMEOUT);
-	}
-	
-
-}
-static void ReadyTempStatus(void){
-	osal_stop_timerEx(GenericApp_TaskID, TEMP_MEAUSRE_START_EVT);
-	osal_stop_timerEx(GenericApp_TaskID, TEMP_MEASUERING_EVT);
-	osal_stop_timerEx(GenericApp_TaskID, TEMP_MEASURE_TIEMOUT_EVT);
-	uint16 temp;
-	sendData_t dataPacket;
-	temp = SHT2X_ReadMeasure(TEMP_MEASURE_N_MASTER);
-	printf("%d,%02d\n",temp/100,temp %100);
-	dataPacket.utcSecs = osal_getClock();
-	dataPacket.data = temp;
-	uint8 res;
-	res = QueueIn(&tempQueue,&dataPacket);
-	if(res == QueueFull){
-		printf("temp queue full");
-	}
-	//重启定时器
-	osal_start_timerEx(GenericApp_TaskID, SAMPLE_TEMP_EVT, sampleTempTimeDelay);
-				
-}
-static void FailedTempStatus(void){
-	osal_stop_timerEx(GenericApp_TaskID, TEMP_MEAUSRE_START_EVT);
-	osal_stop_timerEx(GenericApp_TaskID, TEMP_MEASUERING_EVT);
-	osal_stop_timerEx(GenericApp_TaskID, TEMP_MEASURE_READY_EVT);
-	uint16 temp;
-	sendData_t dataPacket;
-	temp = 0xFFFF;
-	dataPacket.utcSecs = osal_getClock();
-	dataPacket.data = temp;
-	uint8 res;
-	res = QueueIn(&tempQueue,&dataPacket);
-	if(res == QueueFull){
-		printf("temp queue full");
-//		osal_stop_timerEx(uint8 task_id, uint16 event_id)
-	}
-		//重启定时器
-		osal_start_timerEx(GenericApp_TaskID, SAMPLE_TEMP_EVT, sampleTempTimeDelay);
-	
-}
 
 
 
