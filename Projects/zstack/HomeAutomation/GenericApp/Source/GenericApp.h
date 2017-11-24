@@ -99,6 +99,7 @@ extern "C"
 #define TEMP_PACKET_SEND_CMD   	      0x00
 #define REQUEST_SYNC_CLOCK_CMD		  0x01
 #define SYNC_TIME_CMD				  0x02
+#define COOR_START_CMD				  0x03
 
 
 

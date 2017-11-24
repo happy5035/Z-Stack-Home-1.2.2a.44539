@@ -70,6 +70,7 @@
 
 #include "GenericApp.h"
 #include "DebugTrace.h"
+#include "MT_UART.h"
 
 #if !defined( WIN32 ) || defined( ZBIT )
   #include "OnBoard.h"
@@ -199,6 +200,9 @@ static void GenericApp_ProcessZDOMsgs( zdoIncomingMsg_t *inMsg );
 static void GenericApp_HandleKeys( byte shift, byte keys );
 static void GenericApp_MessageMSGCB( afIncomingMSGPacket_t *pckt );
 
+static void BuildUartAppData(uint8* data,uint8*packet,uint8 len);
+
+
 //sample and send  temp humi
 static void EndSampleTempHandler(void);
 static void EndSampleHumHandler(void);
@@ -218,6 +222,7 @@ static void EndRequestSyncClock(void);
 //coor funciton
 static void CoorSendSyncClock(afIncomingMSGPacket_t *pkt);
 static void CoorProcessTempHumData(afIncomingMSGPacket_t *pkt);
+static void SendCoorStart(void);
 
 
 
@@ -368,6 +373,7 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
           	if(GenericApp_NwkState == DEV_ZB_COORD){
 				printf("coordinator start...\n");
 				HalLedSet(HAL_LED_1, HAL_LED_MODE_ON);
+				SendCoorStart();
 //				osal_setClock(0x21AAEBCB);  //2017/11/24 16:40:00
 			}
 			if(GenericApp_NwkState == DEV_ROUTER){
@@ -541,7 +547,13 @@ static void GenericApp_MessageMSGCB( afIncomingMSGPacket_t *pkt )
     协调器处理终端发送的温度湿度数据包
 -------------------------------------------------------------------------*/
 static void CoorProcessTempHumData(afIncomingMSGPacket_t *pkt){
-	HalUARTWrite(HAL_UART_PORT_1, pkt->cmd.Data, pkt->cmd.DataLength);
+	uint8* data;
+	uint8 len;
+	len = pkt->cmd.DataLength + 5;
+	data = osal_mem_alloc(len );
+	BuildUartAppData(data, pkt->cmd.Data, pkt->cmd.DataLength);
+	HalUARTWrite(HAL_UART_PORT_1,data, len);
+	osal_mem_free(data);
 }
 /*   C O R   S E N D   C L O C K   */
 /*-------------------------------------------------------------------------
@@ -574,6 +586,35 @@ static void CoorSendSyncClock(afIncomingMSGPacket_t *pkt){
 	}else{
 //		printf("alloc send clock packet failed.\n");
 	}
+}
+
+/*   S E N D   C O O R   S T A R T   */
+/*-------------------------------------------------------------------------
+    通过串口发送协调器启动
+-------------------------------------------------------------------------*/
+static void SendCoorStart(void){
+	uint8* data;
+	data = osal_mem_alloc(5);
+	uint8* packet ;
+	packet = osal_mem_alloc(1);
+	*packet = COOR_START_CMD;
+	BuildUartAppData(data, packet, 1);
+	HalUARTWrite(HAL_UART_PORT_1, data, 6);
+	osal_mem_free(data);
+}
+/*   B U I L D   U A R T   A P P   D A T A   */
+/*-------------------------------------------------------------------------
+    够着通过串口发送APP信息的数据包
+-------------------------------------------------------------------------*/
+static void BuildUartAppData(uint8* data,uint8*packet,uint8 len){
+	*data++ = MT_UART_SOF;
+	*data++ = len;
+	*data++ = 0x60| 0x09;
+	*data++ = 0x00;
+	if (len != 0 ){
+		osal_memcpy(data, packet,len);
+	}
+	*(data+len) = MT_UartCalcFCS(data -3,len+3);
 }
 
 /*   E N D   S E T   C L O C K   */
