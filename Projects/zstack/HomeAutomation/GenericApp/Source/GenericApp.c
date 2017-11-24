@@ -149,9 +149,6 @@ byte GenericApp_TransID;  // This is the unique message ID (counter)
 afAddrType_t GenericApp_DstAddr;
 afAddrType_t GenericApp_BroadcastAddr;
 
-// Number of recieved messages
-static uint16 rxMsgCount;
-
 uint32  sampleTempTimeDelay = 1000;				//1s
 uint32 tempPacketSendTimeDelay = 10000;			//30s
 uint8 tempPacketSendRetrayTimes = 0;			//温度数据包重复发送次数
@@ -162,6 +159,8 @@ uint16 tempPacketTimeWindow = 1;
 uint32 sampleHumTimeDelay = 10000;// 60s一次采集湿度数据
 
 uint8 sampleTask = 0x00;
+
+uint32 requestSyncClockDelay = 10000;
 
 //发送数据包
 typedef struct
@@ -199,15 +198,22 @@ uint32 lastSampleHumClock; //上次采集湿度时间
 static void GenericApp_ProcessZDOMsgs( zdoIncomingMsg_t *inMsg );
 static void GenericApp_HandleKeys( byte shift, byte keys );
 static void GenericApp_MessageMSGCB( afIncomingMSGPacket_t *pckt );
-static void SampleTempHandler(void);
-static void SampleHumHandler(void);
-static void TempPacketSendHandler(void);
-static void TempSampleCfg(void);
-static void SampleTask(void);
-static int16 ReadTemp(void);
-static int16 ReadHum(void);
-static uint16 ReadVcc(void);
-static uint8* BuildTempSendPacket(uint8* len);
+
+//sample and send  temp humi
+static void EndSampleTempHandler(void);
+static void EndSampleHumHandler(void);
+static void EndTempPacketSendHandler(void);
+static void EndTempSampleCfg(void);
+static void EndSampleTask(void);
+static int16 EndReadTemp(void);
+static int16 EndReadHum(void);
+static uint16 EndReadVcc(void);
+static uint8* EndBuildTempSendPacket(uint8*,uint8*,uint8*);
+
+// sync time
+static void EndSetClock(afIncomingMSGPacket_t *pkt);
+static void EndRequestSyncClock(void);
+
 
 
 /*********************************************************************
@@ -279,7 +285,7 @@ void GenericApp_Init( uint8 task_id )
     QueueInit(&tempQueue);
 	QueueInit(&humQueue);
 
-//    TempSampleCfg();
+//    EndTempSampleCfg();
 }
 
 /*********************************************************************
@@ -367,8 +373,10 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
 				osal_start_timerEx(GenericApp_TaskID, SAMPLE_TEMP_EVT, sampleTempTimeDelay);
                 osal_start_reload_timer(GenericApp_TaskID, SAMPLE_HUM_EVT, sampleHumTimeDelay);
 				osal_start_reload_timer(GenericApp_TaskID, TEMP_PACKET_SEND_EVT, tempPacketSendTimeDelay);
+				EndTempSampleCfg();
+
 				
-				TempSampleCfg();
+				osal_start_reload_timer(GenericApp_TaskID, REQUEST_SYNC_CLOCK_EVT, requestSyncClockDelay);
 				osal_pwrmgr_device(PWRMGR_BATTERY);
 			}
             
@@ -390,25 +398,19 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
   }
   
 	if(events & SAMPLE_TEMP_EVT){
-//		Set_Resolution(RESOLUTION_T11);
-//		osal_start_timerEx(GenericApp_TaskID, TEMP_MEASURE_TIEMOUT_EVT, TEMP_MEASURE_FAILED_TIMEOUT);
-//		osal_set_event(GenericApp_TaskID, TEMP_MEAUSRE_START_EVT);
-//		SampleTempHandler();
 		sampleTask |= SAMPLE_TEMP_START_TASK | SAMPLE_TEMP_READY_TASK;
-		SampleTask();
+		EndSampleTask();
 		return events ^ SAMPLE_TEMP_EVT;
 	}
 	
 	if(events & SAMPLE_HUM_EVT){
-//		SampleHumHandler();
 		sampleTask |= SAMPLE_HUM_START_TASK | SAMPLE_HUM_READY_TASK;
-		SampleTask();
+		EndSampleTask();
 		return events ^ SAMPLE_HUM_EVT;
 	}
 	
 	if(events & SAMPLE_TASK_EVT){
-//		SampleHumHandler();
-		SampleTask();
+		EndSampleTask();
 		return events ^ SAMPLE_TASK_EVT;
 	}
 
@@ -418,9 +420,14 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
 //		uint16 random;
 //		random = (uint16)(((float)osal_rand() / 65535) * tempPacketTimeWindow * tempPacketSendTimeDelay) ;
 //		printf("random window:%u\n",random);
-		TempPacketSendHandler();
+		EndTempPacketSendHandler();
 //		osal_start_timerEx(GenericApp_TaskID, TEMP_PACKET_SEND_EVT, tempPacketSendTimeDelay + random);
 		return events ^ TEMP_PACKET_SEND_EVT;
+	}
+
+	if(events & REQUEST_SYNC_CLOCK_EVT){
+		EndRequestSyncClock();
+		return events^ REQUEST_SYNC_CLOCK_EVT;
 	}
 
   return 0;
@@ -506,23 +513,71 @@ static void GenericApp_MessageMSGCB( afIncomingMSGPacket_t *pkt )
   switch ( pkt->clusterId )
   {
     case GENERICAPP_CLUSTERID:
-      rxMsgCount += 1;  // Count this message
       HalLedSet ( HAL_LED_4, HAL_LED_MODE_BLINK );  // Blink an LED
-#if defined( LCD_SUPPORTED )
-      HalLcdWriteString( (char*)pkt->cmd.Data, HAL_LCD_LINE_1 );
-      HalLcdWriteStringValue( "Rcvd:", rxMsgCount, 10, HAL_LCD_LINE_2 );
-#elif defined( WIN32 )
-      WPRINTSTR( pkt->cmd.Data );
-#endif
       break;
+	case SYNC_TIME_CLUSTERID:
+		EndSetClock(pkt);
+		break;
+	default :
+		break;
   }
 }
 
-/*   S A M P L E   T A S K   */
+/*   E N D   S E T   C L O C K   */
+/*-------------------------------------------------------------------------
+    设置终端时间
+-------------------------------------------------------------------------*/
+static void EndSetClock(afIncomingMSGPacket_t *pkt){
+	uint8 dataLength;
+	uint8* data;
+	UTCTime clock;
+	dataLength = pkt->cmd.DataLength;
+	data = pkt->cmd.Data;
+	clock = osal_build_uint32(data, dataLength);
+	osal_setClock(clock);
+	printf("sync:%02x%02x%02x%02x\n"
+	,BREAK_UINT32(clock, 3)
+	,BREAK_UINT32(clock, 2)
+	,BREAK_UINT32(clock, 1)
+	,BREAK_UINT32(clock, 0)
+	);
+}
+
+/*   E N D   R E Q U E S T   S Y N C   C L O C K   */
+/*-------------------------------------------------------------------------
+    发送请求同步时间
+-------------------------------------------------------------------------*/
+static void EndRequestSyncClock(){
+	uint8* packet;
+	packet = osal_mem_alloc(sizeof(UTCTime));
+	UTCTime clock;
+	clock = osal_getClock();
+	osal_buffer_uint32(packet, clock);
+	if(packet){
+		if (AF_DataRequest(&GenericApp_DstAddr, &GenericApp_epDesc, 
+			REQUEST_SYNC_CLOCK_CLUSTERID, 
+			sizeof(UTCTime), //(byte)osal_strlen( theMessageData ) + 1,
+		(byte *) packet, 
+			&GenericApp_TransID, 
+			AF_DISCV_ROUTE, AF_DEFAULT_RADIUS) == afStatus_SUCCESS)
+		{
+			// Successfully requested to be sent.
+			HalLedBlink(HAL_LED_4, 1, 50, 500);
+			printf("send sync clock success\n");
+		}else{
+			printf("send sync clock failed\n");
+	    }
+	    osal_mem_free(packet);
+    }else{
+		printf("build sync clock packet failed\n");
+	}
+}
+
+/*   E N D S A M P L E   T A S K   */
 /*-------------------------------------------------------------------------
     采集任务
 -------------------------------------------------------------------------*/
-static void SampleTask(void){
+static void EndSampleTask(void){
 	while(sampleTask){
 		if(sampleTask & SAMPLE_TEMP_START_TASK){
 			Set_Resolution(RESOLUTION_T11);
@@ -531,7 +586,7 @@ static void SampleTask(void){
 			break;
 		}
 		if(sampleTask & SAMPLE_TEMP_READY_TASK){
-			SampleTempHandler();
+			EndSampleTempHandler();
 			sampleTask ^= SAMPLE_TEMP_READY_TASK;
 			break;
 		}
@@ -542,7 +597,7 @@ static void SampleTask(void){
 			break;
 		}
 		if(sampleTask & SAMPLE_HUM_READY_TASK){
-			SampleHumHandler();
+			EndSampleHumHandler();
 			sampleTask ^= SAMPLE_HUM_READY_TASK;
 			break;
 		}
@@ -559,11 +614,11 @@ static void SampleTask(void){
 /*-------------------------------------------------------------------------
     温度采集处理函数
 -------------------------------------------------------------------------*/
-static void SampleTempHandler(void){
+static void EndSampleTempHandler(void){
 
 	uint16 temp;
 	sendData_t dataPacket;
-	temp = ReadTemp();
+	temp = EndReadTemp();
 	dataPacket.utcSecs = lastSampleTempClock;
 	lastSampleTempClock = osal_getClock();
 	dataPacket.data = temp;
@@ -581,10 +636,10 @@ static void SampleTempHandler(void){
 /*-------------------------------------------------------------------------
     湿度采集处理函数
 -------------------------------------------------------------------------*/
-static void SampleHumHandler(void){
+static void EndSampleHumHandler(void){
 	uint16 hum;
 	sendData_t dataPacket;
-	hum = ReadHum();
+	hum = EndReadHum();
 	dataPacket.data = hum;
 	dataPacket.utcSecs = lastSampleHumClock;
 	lastSampleHumClock = osal_getClock();
@@ -596,15 +651,17 @@ static void SampleHumHandler(void){
 	}
 }
 
-static void TempPacketSendHandler(void){
+static void EndTempPacketSendHandler(void){
 	
 	uint8* packet;
-	uint8 len;
-    packet = BuildTempSendPacket(&len);
+	uint8 temp_len;
+	uint8 hum_len;
+	uint8 total_len;
+    packet = EndBuildTempSendPacket(&total_len,&temp_len,&hum_len);
 	if(packet){
 		if (AF_DataRequest(&GenericApp_DstAddr, &GenericApp_epDesc, 
 			GENERICAPP_CLUSTERID, 
-			len, //(byte)osal_strlen( theMessageData ) + 1,
+			total_len, //(byte)osal_strlen( theMessageData ) + 1,
 		(byte *) packet, 
 			&GenericApp_TransID, 
 			AF_DISCV_ROUTE, AF_DEFAULT_RADIUS) == afStatus_SUCCESS)
@@ -612,7 +669,8 @@ static void TempPacketSendHandler(void){
 			// Successfully requested to be sent.
 			HalLedBlink(HAL_LED_4, 1, 50, 500);
 			printf("send temp success\n");
-			QueueRemove(&tempQueue,len);
+			QueueRemove(&tempQueue,temp_len);
+			QueueRemove(&humQueue, hum_len);
 		}else{
 			printf("send temp failed\n");
 	    }
@@ -625,14 +683,14 @@ static void TempPacketSendHandler(void){
 /**
 *	温度传感器配置
 */
-static void TempSampleCfg(void){
+static void EndTempSampleCfg(void){
 //	TR0 				= 0X01; 					/*这里我让AD和温度传感器相连*/
 //	ATEST				= 0X01; 					/*启动温度传感器*/
 //	tempStatus = TEMP_MEAUSRE_START_STATUS;
 
 }
 
-static int16 ReadTemp(){
+static int16 EndReadTemp(){
 
     int16 res;
 	res = 0xFFFF;
@@ -640,35 +698,26 @@ static int16 ReadTemp(){
 		res = SHT2X_ReadMeasure(TEMP_MEASURE_N_MASTER);
 		
 	}
-//	temp = SHT2X_StartMeasureNHM(TEMP_MEASURE_N_MASTER);
-//    res = (int16) (temp*100);
+
 	printf("temp:%d.%02d\n",res/100,res %100);
 
-//	float rh;
-//	Set_Resolution(RESOLUTION_RH10);
-//	rh = SHT2X_StartMeasureNHM(HUMI_MEASURE_N_MASTER);
-//	printf("%d\n",(int16)rh);
-	//设置分辨率
-//	Set_Resolution(RESOLUTION_T11);
-//	SHT2X_StartMeasureNHM(TEMP_MEASURE_N_MASTER);
+
 	return res;
 
 }
 
-static int16 ReadHum(void){
+static int16 EndReadHum(void){
 	int16 res;
 	res = 0xFFFF;
 	if(SHT2X_MeasureReady(HUMI_MEASURE_N_MASTER)){
 		res = SHT2X_ReadMeasure(HUMI_MEASURE_N_MASTER);
 	}
 
-//	Set_Resolution(RESOLUTION_RH11);
-//	SHT2X_StartMeasureNHM(HUMI_MEASURE_N_MASTER);
 	printf("hum:%d.%02d\n",res/100,res %100);
 	return res;
 }
 
-static uint16 ReadVcc(void){
+static uint16 EndReadVcc(void){
 	HalAdcSetReference(HAL_ADC_REF_125V);
 	uint16 adcValue;
 	float vcc;
@@ -683,78 +732,64 @@ static uint16 ReadVcc(void){
 /**
 *	构造发送数据包，返回数据包制作并修改数据包长度
 */
-static uint8* BuildTempSendPacket(uint8 *len){
+static uint8* EndBuildTempSendPacket(uint8* total_len,uint8 *temp_len,uint8* hum_len){
 	uint8* packet;
-	uint8 temp_len;
-	uint8 hum_len;
 	sendData_t* temp_start ;
 	sendData_t* hum_start ;
 
-	packetHead.vdd = ReadVcc();
+	packetHead.vdd = EndReadVcc();
 
 	// temp header
-	temp_len = tempQueue.count;
-	if(temp_len > TEMP_PACKET_SEND_SIZE){
-		temp_len = TEMP_PACKET_SEND_SIZE;
+	*temp_len = tempQueue.count;
+	if(*temp_len > TEMP_PACKET_SEND_SIZE){
+		*temp_len = TEMP_PACKET_SEND_SIZE;
 	}
 	temp_start = &tempQueue.dat[tempQueue.front];
 	osal_memcpy(packetHead.extAddr, extAddr, Z_EXTADDR_LEN);
 	packetHead.tempStartTime = temp_start->utcSecs;
-	packetHead.tempNumbers = temp_len;
+	packetHead.tempNumbers = *temp_len;
 	packetHead.sampleFreq = sampleTempTimeDelay;
 	printf("vcc:%d\n",packetHead.vdd);
 	printf("temp packet header:\n");
-//	printf("startTime:%02x%02x%02x%02x\n"
-//		,BREAK_UINT32(packetHead.tempStartTime, 3)
-//		,BREAK_UINT32(packetHead.tempStartTime, 2)
-//		,BREAK_UINT32(packetHead.tempStartTime, 1)
-//		,BREAK_UINT32(packetHead.tempStartTime, 0)
-//		);
 	printf("sampleFreq:%d\n",packetHead.sampleFreq);
 	printf("numbers:%d\n",packetHead.tempNumbers);
 	
 	// Humidity header
-	hum_len = humQueue.count;
-	if(hum_len > HUM_PACKET_SEND_SIZE){
-		hum_len = HUM_PACKET_SEND_SIZE;
+	*hum_len = humQueue.count;
+	if(*hum_len > HUM_PACKET_SEND_SIZE){
+		*hum_len = HUM_PACKET_SEND_SIZE;
 
 	}
 	hum_start = &humQueue.dat[humQueue.front];
 	packetHead.humStartTime = hum_start->utcSecs;
 	packetHead.humFreq = sampleHumTimeDelay;
-	packetHead.humNumbers = hum_len;
+	packetHead.humNumbers = *hum_len;
 	printf("hum packet header:\n");
-//	printf("startTime:%02x%02x%02x%02x\n"
-//		,BREAK_UINT32(packetHead.humStartTime, 3)
-//		,BREAK_UINT32(packetHead.humStartTime, 2)
-//		,BREAK_UINT32(packetHead.humStartTime, 1)
-//		,BREAK_UINT32(packetHead.humStartTime, 0)
-//		);
 	printf("sampleFreq:%d\n",packetHead.humFreq);
 	printf("numbers:%d\n",packetHead.humNumbers);
 
 	
 	//复制数据到发送数据包
-	*len = sizeof(tempPacket_t) + sizeof(int16) * temp_len + sizeof(16) * hum_len;
-	packet = osal_mem_alloc(*len);
+	*total_len = sizeof(tempPacket_t) + sizeof(int16) * (*temp_len) + sizeof(16) * (*hum_len);
+	packet = osal_mem_alloc(* total_len);
 	uint8* _packet;
 	_packet = packet;
 	if(packet){
 		osal_memcpy(packet,&packetHead,sizeof(tempPacket_t));
 		_packet += sizeof(tempPacket_t);
 		int i;
-		for (i = 0; i < temp_len; i++){
-			*(_packet ++) = LO_UINT16(temp_start->data);
-			*(_packet ++) = HI_UINT16(temp_start->data);
+		for (i = 0; i < *temp_len; i++){
+			*_packet ++ = LO_UINT16(temp_start->data);
+			*_packet ++ = HI_UINT16(temp_start->data);
 			if(QueueOut(&tempQueue, temp_start) == QueueEmpty){
 				printf("tempQueue empty\n");
 				return NULL;
 			}
 		}
 		
-		for (i = 0; i < hum_len; i++){
-			*(_packet ++) = LO_UINT16(hum_start->data);
-			*(_packet ++) = HI_UINT16(hum_start->data);
+		for (i = 0; i < *hum_len; i++){
+			*_packet ++ = LO_UINT16(hum_start->data);
+			*_packet ++ = HI_UINT16(hum_start->data);
 			
 			if(QueueOut(&humQueue, hum_start) == QueueEmpty){
 				printf("humQueue empty\n");

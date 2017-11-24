@@ -65,6 +65,8 @@ extern "C"
 
 #define GENERICAPP_MAX_CLUSTERS       1
 #define GENERICAPP_CLUSTERID          1
+#define SYNC_TIME_CLUSTERID			  2
+#define REQUEST_SYNC_CLOCK_CLUSTERID  3
 
 
 
@@ -80,10 +82,10 @@ extern "C"
 #define GENERICAPP_SEND_MSG_EVT       0x0001
 #define UART_RX_CB_EVT                0x0002 	
 #define SAMPLE_TEMP_EVT               0x0004
-#define TEMP_PACKET_SEND_EVT		  0x0010
-
-#define SAMPLE_HUM_EVT				  0x0200
-#define SAMPLE_TASK_EVT	  	  		  0x0400
+#define SAMPLE_HUM_EVT				  0x0008
+#define SAMPLE_TASK_EVT	  	  		  0x0010
+#define TEMP_PACKET_SEND_EVT		  0x0020
+#define REQUEST_SYNC_CLOCK_EVT		  0x0040
 
 //采集任务
 #define SAMPLE_TASK_WAITE_TIMEOUT     100  		// 等待测量时间ms
