@@ -160,7 +160,7 @@ uint32 sampleHumTimeDelay = 10000;// 60s一次采集湿度数据
 
 uint8 sampleTask = 0x00;
 
-uint32 requestSyncClockDelay = 10000;
+uint32 requestSyncClockDelay = 12000;
 
 //发送数据包
 typedef struct
@@ -213,6 +213,11 @@ static uint8* EndBuildTempSendPacket(uint8*,uint8*,uint8*);
 // sync time
 static void EndSetClock(afIncomingMSGPacket_t *pkt);
 static void EndRequestSyncClock(void);
+
+
+//coor funciton
+static void CoorSendSyncClock(afIncomingMSGPacket_t *pkt);
+static void CoorProcessTempHumData(afIncomingMSGPacket_t *pkt);
 
 
 
@@ -340,7 +345,9 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
 
           sentStatus = afDataConfirm->hdr.status;
           // Action taken when confirmation is received.
+          #ifndef RTR_NWK
           printf("%d data confirm,status: 0x%x\n", sentTransID,sentStatus);
+		  #endif
           if ( sentStatus != ZSuccess )
           {
             // The data wasn't delivered -- Do something
@@ -361,6 +368,7 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
           	if(GenericApp_NwkState == DEV_ZB_COORD){
 				printf("coordinator start...\n");
 				HalLedSet(HAL_LED_1, HAL_LED_MODE_ON);
+//				osal_setClock(0x21AAEBCB);  //2017/11/24 16:40:00
 			}
 			if(GenericApp_NwkState == DEV_ROUTER){
 				printf("router start...\n");
@@ -513,14 +521,59 @@ static void GenericApp_MessageMSGCB( afIncomingMSGPacket_t *pkt )
   switch ( pkt->clusterId )
   {
     case GENERICAPP_CLUSTERID:
-      HalLedSet ( HAL_LED_4, HAL_LED_MODE_BLINK );  // Blink an LED
       break;
+    case TEMP_HUM_DATA_CLUSTERID:
+		HalLedSet ( HAL_LED_4, HAL_LED_MODE_BLINK );  // Blink an LED
+		CoorProcessTempHumData(pkt);
+   		break;
 	case SYNC_TIME_CLUSTERID:
 		EndSetClock(pkt);
+		break;
+	case REQUEST_SYNC_CLOCK_CLUSTERID:
+		CoorSendSyncClock(pkt);
 		break;
 	default :
 		break;
   }
+}
+/*   C O O R   P R O C E S S   T E M P   H U M   D A T A   */
+/*-------------------------------------------------------------------------
+    协调器处理终端发送的温度湿度数据包
+-------------------------------------------------------------------------*/
+static void CoorProcessTempHumData(afIncomingMSGPacket_t *pkt){
+	HalUARTWrite(HAL_UART_PORT_1, pkt->cmd.Data, pkt->cmd.DataLength);
+}
+/*   C O R   S E N D   C L O C K   */
+/*-------------------------------------------------------------------------
+    协调器发送同步时间给终端
+-------------------------------------------------------------------------*/
+static void CoorSendSyncClock(afIncomingMSGPacket_t *pkt){
+	uint8* packet;
+	uint8 len;
+	len = sizeof(UTCTime);
+	packet = osal_mem_alloc(len);
+	if(packet){
+		osal_buffer_uint32(packet, osal_getClock());
+		GenericApp_DstAddr.addrMode = (afAddrMode_t)Addr16Bit;
+		GenericApp_DstAddr.endPoint = GENERICAPP_ENDPOINT;
+		GenericApp_DstAddr.addr.shortAddr = pkt->srcAddr.addr.shortAddr;
+		if (AF_DataRequest(&GenericApp_DstAddr, &GenericApp_epDesc, 
+			SYNC_TIME_CLUSTERID, 
+			len, 
+		(byte *) packet, 
+			&GenericApp_TransID, 
+			AF_DISCV_ROUTE, AF_DEFAULT_RADIUS) == afStatus_SUCCESS)
+		{
+			// Successfully requested to be sent.
+			HalLedBlink(HAL_LED_4, 1, 50, 500);
+//			printf("send sync clock success\n");
+		}else{
+//			printf("send sync clock failed\n");
+	    }
+	    osal_mem_free(packet);
+	}else{
+//		printf("alloc send clock packet failed.\n");
+	}
 }
 
 /*   E N D   S E T   C L O C K   */
@@ -549,23 +602,29 @@ static void EndSetClock(afIncomingMSGPacket_t *pkt){
 -------------------------------------------------------------------------*/
 static void EndRequestSyncClock(){
 	uint8* packet;
-	packet = osal_mem_alloc(sizeof(UTCTime));
-	UTCTime clock;
-	clock = osal_getClock();
-	osal_buffer_uint32(packet, clock);
+	uint8 len;
+	len = sizeof(UTCTime) + 1;
+	packet = osal_mem_alloc(len);
 	if(packet){
+		*packet = REQUEST_SYNC_CLOCK_CMD;
+		UTCTime clock;
+		clock = osal_getClock();
+		osal_buffer_uint32(packet+1, clock);
+		  GenericApp_DstAddr.addrMode = (afAddrMode_t)Addr16Bit;
+		  GenericApp_DstAddr.endPoint = GENERICAPP_ENDPOINT;
+		  GenericApp_DstAddr.addr.shortAddr = 0x00;
 		if (AF_DataRequest(&GenericApp_DstAddr, &GenericApp_epDesc, 
 			REQUEST_SYNC_CLOCK_CLUSTERID, 
-			sizeof(UTCTime), //(byte)osal_strlen( theMessageData ) + 1,
+			len, 
 		(byte *) packet, 
 			&GenericApp_TransID, 
 			AF_DISCV_ROUTE, AF_DEFAULT_RADIUS) == afStatus_SUCCESS)
 		{
 			// Successfully requested to be sent.
 			HalLedBlink(HAL_LED_4, 1, 50, 500);
-			printf("send sync clock success\n");
+			printf("send request sync clock success\n");
 		}else{
-			printf("send sync clock failed\n");
+			printf("send request sync clock failed\n");
 	    }
 	    osal_mem_free(packet);
     }else{
@@ -659,8 +718,11 @@ static void EndTempPacketSendHandler(void){
 	uint8 total_len;
     packet = EndBuildTempSendPacket(&total_len,&temp_len,&hum_len);
 	if(packet){
+	  GenericApp_DstAddr.addrMode = (afAddrMode_t)Addr16Bit;
+	  GenericApp_DstAddr.endPoint = GENERICAPP_ENDPOINT;
+	  GenericApp_DstAddr.addr.shortAddr = 0x00;
 		if (AF_DataRequest(&GenericApp_DstAddr, &GenericApp_epDesc, 
-			GENERICAPP_CLUSTERID, 
+			TEMP_HUM_DATA_CLUSTERID, 
 			total_len, //(byte)osal_strlen( theMessageData ) + 1,
 		(byte *) packet, 
 			&GenericApp_TransID, 
@@ -696,7 +758,6 @@ static int16 EndReadTemp(){
 	res = 0xFFFF;
 	if(SHT2X_MeasureReady(TEMP_MEASURE_N_MASTER)){
 		res = SHT2X_ReadMeasure(TEMP_MEASURE_N_MASTER);
-		
 	}
 
 	printf("temp:%d.%02d\n",res/100,res %100);
@@ -770,12 +831,13 @@ static uint8* EndBuildTempSendPacket(uint8* total_len,uint8 *temp_len,uint8* hum
 
 	
 	//复制数据到发送数据包
-	*total_len = sizeof(tempPacket_t) + sizeof(int16) * (*temp_len) + sizeof(16) * (*hum_len);
+	*total_len = sizeof(tempPacket_t) + sizeof(int16) * (*temp_len) + sizeof(16) * (*hum_len) + 1;
 	packet = osal_mem_alloc(* total_len);
 	uint8* _packet;
 	_packet = packet;
 	if(packet){
-		osal_memcpy(packet,&packetHead,sizeof(tempPacket_t));
+		*_packet ++ = TEMP_PACKET_SEND_CMD;
+		osal_memcpy(_packet,&packetHead,sizeof(tempPacket_t));
 		_packet += sizeof(tempPacket_t);
 		int i;
 		for (i = 0; i < *temp_len; i++){

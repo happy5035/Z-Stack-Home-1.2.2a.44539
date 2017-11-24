@@ -64,9 +64,10 @@ extern "C"
 #define GENERICAPP_FLAGS              0
 
 #define GENERICAPP_MAX_CLUSTERS       1
-#define GENERICAPP_CLUSTERID          1
-#define SYNC_TIME_CLUSTERID			  2
-#define REQUEST_SYNC_CLOCK_CLUSTERID  3
+#define GENERICAPP_CLUSTERID          0xf1
+#define SYNC_TIME_CLUSTERID			  0xf2
+#define REQUEST_SYNC_CLOCK_CLUSTERID  0xf3
+#define TEMP_HUM_DATA_CLUSTERID  	  0xf4
 
 
 
@@ -94,7 +95,10 @@ extern "C"
 #define SAMPLE_HUM_START_TASK 		  0x04
 #define SAMPLE_HUM_READY_TASK 		  0x08
 
-
+// aps cmd
+#define TEMP_PACKET_SEND_CMD   	      0x00
+#define REQUEST_SYNC_CLOCK_CMD		  0x01
+#define SYNC_TIME_CMD				  0x02
 
 
 
