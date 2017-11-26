@@ -101,6 +101,16 @@ extern "C"
 #define SYNC_TIME_CMD				  0x02
 #define COOR_START_CMD				  0x03
 
+//uart constans
+// 命令格式为
+//		| SOP | Data Length | CMD1 | CMD2 |  Data  | FCS |
+//		|  1  |      1      |  1   |  1   |  0-Len |  1  |
+
+#define UART_CMD_LEN				  2 		//uart 命令字节数
+#define UART_LEN_TOKEN_LEN	          1			// 长度字节数	
+#define UART_HEADER_LEN				  3			//一个长度字节，两个命令字节
+#define UART_MIN_LEN				  5 		// 最小数据长度 
+
 
 
 #if defined( IAR_ARMCM3_LM )

@@ -594,12 +594,12 @@ static void CoorSendSyncClock(afIncomingMSGPacket_t *pkt){
 -------------------------------------------------------------------------*/
 static void SendCoorStart(void){
 	uint8* data;
-	data = osal_mem_alloc(5);
-	uint8* packet ;
-	packet = osal_mem_alloc(1);
-	*packet = COOR_START_CMD;
+	uint8 len;
+	uint8 packet[]={COOR_START_CMD};
+	len = UART_MIN_LEN + 1;
+	data = osal_mem_alloc(len);
 	BuildUartAppData(data, packet, 1);
-	HalUARTWrite(HAL_UART_PORT_1, data, 6);
+	HalUARTWrite(HAL_UART_PORT_1, data, len );
 	osal_mem_free(data);
 }
 /*   B U I L D   U A R T   A P P   D A T A   */
@@ -614,7 +614,7 @@ static void BuildUartAppData(uint8* data,uint8*packet,uint8 len){
 	if (len != 0 ){
 		osal_memcpy(data, packet,len);
 	}
-	*(data+len) = MT_UartCalcFCS(data -3,len+3);
+	*(data+len) = MT_UartCalcFCS(data - UART_HEADER_LEN,len+UART_HEADER_LEN);
 }
 
 /*   E N D   S E T   C L O C K   */
