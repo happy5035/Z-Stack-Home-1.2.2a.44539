@@ -11,6 +11,9 @@ extern byte GenericApp_TransID;
 extern endPointDesc_t GenericApp_epDesc;
 extern afAddrType_t GenericApp_DstAddr;
 
+//	Local Function
+uint8 MasterSetClock(mtSysAppMsg_t *pkt);
+
 /*   C O O R   P R O C E S S   T E M P   H U M   D A T A   */
 /*-------------------------------------------------------------------------
     协调器处理终端发送的温度湿度数据包
@@ -33,8 +36,21 @@ void CoorSendCoorStart(void){
 /*-------------------------------------------------------------------------
     处理串口发送的数据命令
 -------------------------------------------------------------------------*/
-void CoorProcessMtSysMsg(afIncomingMSGPacket_t *pkt){
-		
+void CoorProcessMtSysMsg(mtSysAppMsg_t *pkt){
+	uint8 retValue ;
+	retValue = ZSuccess;
+	uint8 cmd;
+	cmd = *pkt->appData++;
+	pkt->appDataLen--;
+	switch (cmd){
+		case MASTER_SET_CLOCK_CMD:
+			retValue = MasterSetClock(pkt);
+			break;
+		default:
+			break;
+	}
+	MT_BuildAndSendZToolResponse(MT_RSP_CMD_APP, MT_APP_MSG, 1, &retValue);
+	
 }
 /*   C O R   S E N D   C L O C K   */
 /*-------------------------------------------------------------------------
@@ -68,3 +84,15 @@ void CoorSendSyncClock(afIncomingMSGPacket_t *pkt){
 //		printf("alloc send clock packet failed.\n");
 	}
 }
+
+/*   M A S T E R   S E T   C L O C K   */
+/*-------------------------------------------------------------------------
+    处理主机发送的同步时间命令
+-------------------------------------------------------------------------*/
+uint8 MasterSetClock(mtSysAppMsg_t *pkt){
+	UTCTime clock;
+	clock = osal_build_uint32(pkt->appData, pkt->appDataLen);
+	osal_setClock(clock);
+	return ZSuccess;
+}
+

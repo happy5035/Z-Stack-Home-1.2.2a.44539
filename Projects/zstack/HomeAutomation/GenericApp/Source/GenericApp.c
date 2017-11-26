@@ -390,7 +390,7 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
           }
           break;
 		case MT_SYS_APP_MSG:
-			CoorProcessMtSysMsg(MSGpkt);
+			CoorProcessMtSysMsg((mtSysAppMsg_t *)MSGpkt);
 			break;
         default:
           break;

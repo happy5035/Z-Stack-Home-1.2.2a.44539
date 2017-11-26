@@ -49,10 +49,11 @@
 
 
 // aps cmd
-#define TEMP_PACKET_SEND_CMD   	      0x00
-#define REQUEST_SYNC_CLOCK_CMD		  0x01
-#define SYNC_TIME_CMD				  0x02
-#define COOR_START_CMD				  0x03
+#define TEMP_PACKET_SEND_CMD   	      0xF0
+#define REQUEST_SYNC_CLOCK_CMD		  0xF1
+#define SYNC_TIME_CMD				  0xF2
+#define COOR_START_CMD				  0xF3
+#define MASTER_SET_CLOCK_CMD		  0xF4
 
 //uart constans
 // 命令格式为
@@ -64,6 +65,8 @@
 #define UART_HEADER_LEN				  3			//一个长度字节，两个命令字节
 #define UART_MIN_LEN				  5 		// 最小数据长度 
 #define MT_RSP_CMD_APP				  ((uint8)MT_RPC_CMD_SRSP | (uint8)MT_RPC_SYS_APP)
+
+
 
 
 #endif
