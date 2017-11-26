@@ -200,9 +200,6 @@ static void GenericApp_ProcessZDOMsgs( zdoIncomingMsg_t *inMsg );
 static void GenericApp_HandleKeys( byte shift, byte keys );
 static void GenericApp_MessageMSGCB( afIncomingMSGPacket_t *pckt );
 
-static void BuildUartAppData(uint8* data,uint8*packet,uint8 len);
-
-
 //sample and send  temp humi
 static void EndSampleTempHandler(void);
 static void EndSampleHumHandler(void);
@@ -547,13 +544,6 @@ static void GenericApp_MessageMSGCB( afIncomingMSGPacket_t *pkt )
     协调器处理终端发送的温度湿度数据包
 -------------------------------------------------------------------------*/
 static void CoorProcessTempHumData(afIncomingMSGPacket_t *pkt){
-//	uint8* data;
-//	uint8 len;
-//	len = pkt->cmd.DataLength + 5;
-//	data = osal_mem_alloc(len );
-//	BuildUartAppData(data, pkt->cmd.Data, pkt->cmd.DataLength);
-//	HalUARTWrite(HAL_UART_PORT_1,data, len);
-//	osal_mem_free(data);
 	MT_BuildAndSendZToolResponse(MT_RSP_CMD_APP, MT_APP_MSG, pkt->cmd.DataLength, pkt->cmd.Data);
 }
 /*   C O R   S E N D   C L O C K   */
@@ -597,20 +587,7 @@ static void SendCoorStart(void){
 	uint8 cmd = COOR_START_CMD;
 	MT_BuildAndSendZToolResponse(MT_RSP_CMD_APP, MT_APP_MSG, 1, &cmd);
 }
-/*   B U I L D   U A R T   A P P   D A T A   */
-/*-------------------------------------------------------------------------
-    够着通过串口发送APP信息的数据包
--------------------------------------------------------------------------*/
-static void BuildUartAppData(uint8* data,uint8*packet,uint8 len){
-	*data++ = MT_UART_SOF;
-	*data++ = len;
-	*data++ = 0x60| 0x09;
-	*data++ = 0x00;
-	if (len != 0 ){
-		osal_memcpy(data, packet,len);
-	}
-	*(data+len) = MT_UartCalcFCS(data - UART_HEADER_LEN,len+UART_HEADER_LEN);
-}
+
 
 /*   E N D   S E T   C L O C K   */
 /*-------------------------------------------------------------------------
