@@ -71,6 +71,7 @@
 #include "GenericApp.h"
 #include "DebugTrace.h"
 #include "MT_UART.h"
+#include "CoorFunc.h"
 
 #if !defined( WIN32 ) || defined( ZBIT )
   #include "OnBoard.h"
@@ -215,11 +216,6 @@ static uint8* EndBuildTempSendPacket(uint8*,uint8*,uint8*);
 static void EndSetClock(afIncomingMSGPacket_t *pkt);
 static void EndRequestSyncClock(void);
 
-
-//coor funciton
-static void CoorSendSyncClock(afIncomingMSGPacket_t *pkt);
-static void CoorProcessTempHumData(afIncomingMSGPacket_t *pkt);
-static void SendCoorStart(void);
 
 
 
@@ -370,7 +366,7 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
           	if(GenericApp_NwkState == DEV_ZB_COORD){
 				printf("coordinator start...\n");
 				HalLedSet(HAL_LED_1, HAL_LED_MODE_ON);
-				SendCoorStart();
+				CoorSendCoorStart();
 //				osal_setClock(0x21AAEBCB);  //2017/11/24 16:40:00
 			}
 			if(GenericApp_NwkState == DEV_ROUTER){
@@ -393,6 +389,9 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
             
           }
           break;
+		case MT_SYS_APP_MSG:
+			CoorProcessMtSysMsg(MSGpkt);
+			break;
         default:
           break;
       }
@@ -539,55 +538,6 @@ static void GenericApp_MessageMSGCB( afIncomingMSGPacket_t *pkt )
 		break;
   }
 }
-/*   C O O R   P R O C E S S   T E M P   H U M   D A T A   */
-/*-------------------------------------------------------------------------
-    协调器处理终端发送的温度湿度数据包
--------------------------------------------------------------------------*/
-static void CoorProcessTempHumData(afIncomingMSGPacket_t *pkt){
-	MT_BuildAndSendZToolResponse(MT_RSP_CMD_APP, MT_APP_MSG, pkt->cmd.DataLength, pkt->cmd.Data);
-}
-/*   C O R   S E N D   C L O C K   */
-/*-------------------------------------------------------------------------
-    协调器发送同步时间给终端
--------------------------------------------------------------------------*/
-static void CoorSendSyncClock(afIncomingMSGPacket_t *pkt){
-	uint8* packet;
-	uint8 len;
-	len = sizeof(UTCTime);
-	packet = osal_mem_alloc(len);
-	if(packet){
-		osal_buffer_uint32(packet, osal_getClock());
-		GenericApp_DstAddr.addrMode = (afAddrMode_t)Addr16Bit;
-		GenericApp_DstAddr.endPoint = GENERICAPP_ENDPOINT;
-		GenericApp_DstAddr.addr.shortAddr = pkt->srcAddr.addr.shortAddr;
-		if (AF_DataRequest(&GenericApp_DstAddr, &GenericApp_epDesc, 
-			SYNC_TIME_CLUSTERID, 
-			len, 
-		(byte *) packet, 
-			&GenericApp_TransID, 
-			AF_DISCV_ROUTE, AF_DEFAULT_RADIUS) == afStatus_SUCCESS)
-		{
-			// Successfully requested to be sent.
-			HalLedBlink(HAL_LED_4, 1, 50, 500);
-//			printf("send sync clock success\n");
-		}else{
-//			printf("send sync clock failed\n");
-	    }
-	    osal_mem_free(packet);
-	}else{
-//		printf("alloc send clock packet failed.\n");
-	}
-}
-
-/*   S E N D   C O O R   S T A R T   */
-/*-------------------------------------------------------------------------
-    通过串口发送协调器启动
--------------------------------------------------------------------------*/
-static void SendCoorStart(void){
-	uint8 cmd = COOR_START_CMD;
-	MT_BuildAndSendZToolResponse(MT_RSP_CMD_APP, MT_APP_MSG, 1, &cmd);
-}
-
 
 /*   E N D   S E T   C L O C K   */
 /*-------------------------------------------------------------------------
