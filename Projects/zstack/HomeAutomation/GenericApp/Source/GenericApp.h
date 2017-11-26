@@ -49,6 +49,8 @@ extern "C"
  * INCLUDES
  */
 #include "ZComDef.h"
+#include "MT_RPC.h"
+#include "MT.h"
 
 /*********************************************************************
  * CONSTANTS
@@ -110,6 +112,7 @@ extern "C"
 #define UART_LEN_TOKEN_LEN	          1			// 长度字节数	
 #define UART_HEADER_LEN				  3			//一个长度字节，两个命令字节
 #define UART_MIN_LEN				  5 		// 最小数据长度 
+#define MT_RSP_CMD_APP				  ((uint8)MT_RPC_CMD_SRSP | (uint8)MT_RPC_SYS_APP)
 
 
 

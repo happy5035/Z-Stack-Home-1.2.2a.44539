@@ -547,13 +547,14 @@ static void GenericApp_MessageMSGCB( afIncomingMSGPacket_t *pkt )
     协调器处理终端发送的温度湿度数据包
 -------------------------------------------------------------------------*/
 static void CoorProcessTempHumData(afIncomingMSGPacket_t *pkt){
-	uint8* data;
-	uint8 len;
-	len = pkt->cmd.DataLength + 5;
-	data = osal_mem_alloc(len );
-	BuildUartAppData(data, pkt->cmd.Data, pkt->cmd.DataLength);
-	HalUARTWrite(HAL_UART_PORT_1,data, len);
-	osal_mem_free(data);
+//	uint8* data;
+//	uint8 len;
+//	len = pkt->cmd.DataLength + 5;
+//	data = osal_mem_alloc(len );
+//	BuildUartAppData(data, pkt->cmd.Data, pkt->cmd.DataLength);
+//	HalUARTWrite(HAL_UART_PORT_1,data, len);
+//	osal_mem_free(data);
+	MT_BuildAndSendZToolResponse(MT_RSP_CMD_APP, MT_APP_MSG, pkt->cmd.DataLength, pkt->cmd.Data);
 }
 /*   C O R   S E N D   C L O C K   */
 /*-------------------------------------------------------------------------
@@ -593,14 +594,8 @@ static void CoorSendSyncClock(afIncomingMSGPacket_t *pkt){
     通过串口发送协调器启动
 -------------------------------------------------------------------------*/
 static void SendCoorStart(void){
-	uint8* data;
-	uint8 len;
-	uint8 packet[]={COOR_START_CMD};
-	len = UART_MIN_LEN + 1;
-	data = osal_mem_alloc(len);
-	BuildUartAppData(data, packet, 1);
-	HalUARTWrite(HAL_UART_PORT_1, data, len );
-	osal_mem_free(data);
+	uint8 cmd = COOR_START_CMD;
+	MT_BuildAndSendZToolResponse(MT_RSP_CMD_APP, MT_APP_MSG, 1, &cmd);
 }
 /*   B U I L D   U A R T   A P P   D A T A   */
 /*-------------------------------------------------------------------------
