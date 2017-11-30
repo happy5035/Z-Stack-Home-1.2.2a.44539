@@ -12,4 +12,5 @@ void CoorSendSyncClock(afIncomingMSGPacket_t *pkt);
 void CoorProcessTempHumData(afIncomingMSGPacket_t *pkt);
 void CoorSendCoorStart(void);
 void CoorProcessMtSysMsg(mtSysAppMsg_t *pkt);
+
 #endif

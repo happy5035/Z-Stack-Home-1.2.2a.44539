@@ -162,11 +162,12 @@ uint32 sampleHumTimeDelay = 10000;// 60s一次采集湿度数据
 
 uint8 sampleTask = 0x00;
 
-uint32 requestSyncClockDelay = 12000;
+uint32 requestSyncClockDelay = 600000; //10分钟同步一次时间
 
 //发送数据包
 typedef struct
 {
+	uint16  netAddr;
 	uint8 	extAddr[Z_EXTADDR_LEN];
 	uint16 	vdd;
 	UTCTime tempStartTime;
@@ -215,6 +216,9 @@ static uint8* EndBuildTempSendPacket(uint8*,uint8*,uint8*);
 // sync time
 static void EndSetClock(afIncomingMSGPacket_t *pkt);
 static void EndRequestSyncClock(void);
+
+//sync freq
+static void EndSetFreq(afIncomingMSGPacket_t *pkt);
 
 
 
@@ -288,6 +292,7 @@ void GenericApp_Init( uint8 task_id )
     QueueInit(&tempQueue);
 	QueueInit(&humQueue);
 
+//	ZDO_RegisterForZDOMsg(GenericApp_TaskID, Device_annce);
 //    EndTempSampleCfg();
 }
 
@@ -377,12 +382,11 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
 				printf("end device start...\n");
 				HalLedSet(HAL_LED_3, HAL_LED_MODE_ON);
 				//开启采样和发送定时器
+				EndRequestSyncClock();
 				osal_start_timerEx(GenericApp_TaskID, SAMPLE_TEMP_EVT, sampleTempTimeDelay);
                 osal_start_reload_timer(GenericApp_TaskID, SAMPLE_HUM_EVT, sampleHumTimeDelay);
 				osal_start_reload_timer(GenericApp_TaskID, TEMP_PACKET_SEND_EVT, tempPacketSendTimeDelay);
-				EndTempSampleCfg();
-
-				
+//				EndTempSampleCfg();
 				osal_start_reload_timer(GenericApp_TaskID, REQUEST_SYNC_CLOCK_EVT, requestSyncClockDelay);
 				osal_pwrmgr_device(PWRMGR_BATTERY);
 			}
@@ -534,6 +538,9 @@ static void GenericApp_MessageMSGCB( afIncomingMSGPacket_t *pkt )
 	case REQUEST_SYNC_CLOCK_CLUSTERID:
 		CoorSendSyncClock(pkt);
 		break;
+	case SYNC_FREQ_CLUSTERID:
+		EndSetFreq(pkt);
+		break;
 	default :
 		break;
   }
@@ -557,6 +564,39 @@ static void EndSetClock(afIncomingMSGPacket_t *pkt){
 	,BREAK_UINT32(clock, 1)
 	,BREAK_UINT32(clock, 0)
 	);
+}
+/*   E N D   S E T   F R E Q   */
+/*-------------------------------------------------------------------------
+    设置终端温湿度采样频率
+-------------------------------------------------------------------------*/
+static void EndSetFreq(afIncomingMSGPacket_t *pkt){
+	uint32 tempFreq;
+	uint32 humFreq;
+	uint32 packetFreq;
+	uint32 clockFreq;
+	tempFreq = osal_build_uint32(pkt->cmd.Data,4);
+	humFreq = osal_build_uint32(pkt->cmd.Data + 4,4);
+	packetFreq = osal_build_uint32(pkt->cmd.Data + 8,4);
+	clockFreq = osal_build_uint32(pkt->cmd.Data + 12,4);
+	
+//				EndTempSampleCfg();
+	if(tempFreq >= 1000){
+		sampleTempTimeDelay = tempFreq;
+		osal_start_timerEx(GenericApp_TaskID, SAMPLE_TEMP_EVT, sampleTempTimeDelay);
+	}
+	if(humFreq >= 10000){
+		sampleHumTimeDelay = humFreq;
+        osal_start_reload_timer(GenericApp_TaskID, SAMPLE_HUM_EVT, sampleHumTimeDelay);
+	}
+	if(packetFreq >= 10000){
+		tempPacketSendTimeDelay = packetFreq;
+		osal_start_reload_timer(GenericApp_TaskID, TEMP_PACKET_SEND_EVT, tempPacketSendTimeDelay);
+	}
+	if(clockFreq >= 10000){
+		requestSyncClockDelay = clockFreq;
+		osal_start_reload_timer(GenericApp_TaskID, REQUEST_SYNC_CLOCK_EVT, requestSyncClockDelay);
+	}
+	printf("sync temp freq:%d,hum:%d,packet:%d,clock:%d\n",tempFreq,humFreq,packetFreq,clockFreq);
 }
 
 /*   E N D   R E Q U E S T   S Y N C   C L O C K   */
@@ -769,6 +809,7 @@ static uint8* EndBuildTempSendPacket(uint8* total_len,uint8 *temp_len,uint8* hum
 		*temp_len = TEMP_PACKET_SEND_SIZE;
 	}
 	temp_start = &tempQueue.dat[tempQueue.front];
+	packetHead.netAddr = NLME_GetShortAddr();
 	osal_memcpy(packetHead.extAddr, extAddr, Z_EXTADDR_LEN);
 	packetHead.tempStartTime = temp_start->utcSecs;
 	packetHead.tempNumbers = *temp_len;

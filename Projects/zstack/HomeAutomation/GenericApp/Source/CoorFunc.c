@@ -6,13 +6,16 @@
 #include "hal_uart.h"
 #include "hal_led.h"
 #include "OSAL_Clock.h"
+#include "user_printf.h"
 
 extern byte GenericApp_TransID;
 extern endPointDesc_t GenericApp_epDesc;
 extern afAddrType_t GenericApp_DstAddr;
 
 //	Local Function
-uint8 MasterSetClock(mtSysAppMsg_t *pkt);
+uint8 MasterSetClock(mtSysAppMsg_t *pkt); 
+uint8 MasterSetFreq(mtSysAppMsg_t *pkt);
+
 
 /*   C O O R   P R O C E S S   T E M P   H U M   D A T A   */
 /*-------------------------------------------------------------------------
@@ -45,6 +48,9 @@ void CoorProcessMtSysMsg(mtSysAppMsg_t *pkt){
 	switch (cmd){
 		case MASTER_SET_CLOCK_CMD:
 			retValue = MasterSetClock(pkt);
+			break; 
+		case MASTER_SET_FREQ_CMD:
+			retValue = MasterSetFreq(pkt);
 			break;
 		default:
 			break;
@@ -94,5 +100,49 @@ uint8 MasterSetClock(mtSysAppMsg_t *pkt){
 	clock = osal_build_uint32(pkt->appData, pkt->appDataLen);
 	osal_setClock(clock);
 	return ZSuccess;
+}
+
+
+
+/*   M A S T E R   S E T   F R E Q   */
+/*-------------------------------------------------------------------------
+    设置采样温度和湿度频率
+    |  0-1  |  2-5  |  6-9  |  10-13  |  14-17  |
+    |  addr |  temp |  hum  |  packet |  clock  |  
+-------------------------------------------------------------------------*/
+uint8 MasterSetFreq(mtSysAppMsg_t *pkt){
+	uint8* packet;
+	uint8 len;
+    len = sizeof(uint32) * 4;
+	packet = osal_mem_alloc(len);
+	uint8 retValue;
+	retValue = FAILURE;
+	if(packet){
+		uint16 shortAddr;
+		shortAddr = osal_build_uint16(pkt->appData);
+		osal_memcpy(packet, pkt->appData + 2, len);
+		GenericApp_DstAddr.addrMode = (afAddrMode_t)Addr16Bit;
+		GenericApp_DstAddr.endPoint = GENERICAPP_ENDPOINT;
+		GenericApp_DstAddr.addr.shortAddr = shortAddr;
+		if (AF_DataRequest(&GenericApp_DstAddr, &GenericApp_epDesc, 
+			SYNC_FREQ_CLUSTERID, 
+			len, 
+		(byte *) packet, 
+			&GenericApp_TransID, 
+			AF_DISCV_ROUTE, AF_DEFAULT_RADIUS) == afStatus_SUCCESS)
+		{
+			// Successfully requested to be sent.
+			HalLedBlink(HAL_LED_2, 10, 50, 500);
+			retValue = SUCCESS;
+//			printf("send sync freq success\n");
+		}else{
+//			printf("send sync freq failed\n");
+	    }
+	    osal_mem_free(packet);
+
+	}
+	
+//	printf("alloc send sync freq  packet failed\n");
+	return retValue;
 }
 

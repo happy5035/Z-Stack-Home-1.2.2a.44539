@@ -20,7 +20,8 @@
 #define SYNC_TIME_CLUSTERID			  0xf2
 #define REQUEST_SYNC_CLOCK_CLUSTERID  0xf3
 #define TEMP_HUM_DATA_CLUSTERID  	  0xf4
-
+#define SYNC_FREQ_CLUSTERID	  	      0xF5
+#define SYNC_PARAM_CLUSTERID		  0xF6
 
 
 
@@ -53,7 +54,8 @@
 #define REQUEST_SYNC_CLOCK_CMD		  0xF1
 #define SYNC_TIME_CMD				  0xF2
 #define COOR_START_CMD				  0xF3
-#define MASTER_SET_CLOCK_CMD		  0xF4
+#define MASTER_SET_CLOCK_CMD		  0xF4 
+#define MASTER_SET_FREQ_CMD	          0xF5
 
 //uart constans
 // ÃüÁî¸ñÊ½Îª
