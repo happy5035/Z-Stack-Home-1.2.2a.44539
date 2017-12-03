@@ -299,12 +299,12 @@ extern void MAC_RfFrontendSetup(void);
   /* Turn on cache prefetch mode */                              \
   PREFETCH_ENABLE();                                             \
                                                                  \
-   HAL_TURN_OFF_LED1();                                           \
+  HAL_TURN_OFF_LED1();                                           \
   LED1_DDR |= LED1_BV;                                           \
   HAL_TURN_OFF_LED2();                                           \
   LED2_DDR |= LED2_BV;                                           \
   HAL_TURN_OFF_LED3();                                           \
-  LED3_DDR |= LED3_BV;                                             \
+  LED3_DDR |= LED3_BV;                                           \
   HAL_TURN_OFF_LED4();                                           \
   LED4_DDR |= LED4_BV;                                           \
   HAL_TURN_OFF_LED5();                                           \
@@ -314,7 +314,7 @@ extern void MAC_RfFrontendSetup(void);
   HAL_TURN_OFF_LED7();                                           \
   LED7_DDR |= LED7_BV;                                           \
   HAL_TURN_OFF_LED8();                                           \
-  LED8_DDR |= LED8_BV;                                         \
+  LED8_DDR |= LED8_BV;                                           \
                                                                  \
   /* configure tristates */                                      \
   P0INP |= PUSH2_BV;                                             \

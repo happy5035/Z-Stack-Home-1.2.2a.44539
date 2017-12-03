@@ -41,6 +41,8 @@
 #define TEMP_PACKET_SEND_EVT		  0x0020
 #define REQUEST_SYNC_CLOCK_EVT		  0x0040
 
+#define SAMPLE_TEMP_READY_EVT		  0x0080
+
 //采集任务
 #define SAMPLE_TASK_WAITE_TIMEOUT     100  		// 等待测量时间ms
 #define SAMPLE_TEMP_START_TASK 		  0x01

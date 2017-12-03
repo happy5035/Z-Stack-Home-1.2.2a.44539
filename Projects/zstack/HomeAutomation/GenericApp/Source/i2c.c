@@ -12,12 +12,19 @@ SDA¶¨ÒåÎªP1.5
 //#define SCLDIR  0x20
 //#define SDADIR  0x10
 
-#define SCL 	P0_6
-#define SCLDIR  0x40
-#define SDA 	P0_7
-#define SDADIR  0x80
-#define PDIR 	P0DIR
-#define PSEL    P0SEL
+//#define SCL 	P0_1
+//#define SCLDIR  0x02
+//#define SDA 	P0_0
+//#define SDADIR  0x01
+//#define PDIR 	P0DIR
+//#define PSEL    P0SEL
+
+#define SCL 	P1_3
+#define SCLDIR  0x08
+#define SDA 	P1_2
+#define SDADIR  0x04
+#define PDIR 	P1DIR
+#define PSEL    P1SEL
 
 //#define SDA 	P0_0
 //#define PDIR 	P0DIR

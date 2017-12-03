@@ -67,6 +67,7 @@
 #include "FIFOQueue.h"
 #include "OSAL_PwrMgr.h"
 #include "sh20.h"
+#include "tmp275.h"
 
 #include "GenericApp.h"
 #include "DebugTrace.h"
@@ -412,14 +413,22 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
   }
   
 	if(events & SAMPLE_TEMP_EVT){
-		sampleTask |= SAMPLE_TEMP_START_TASK | SAMPLE_TEMP_READY_TASK;
-		EndSampleTask();
+//		sampleTask |= SAMPLE_TEMP_START_TASK | SAMPLE_TEMP_READY_TASK;
+//		EndSampleTask();
+
+		if(TMP275_startMeasure()){
+			osal_start_timerEx(GenericApp_TaskID, SAMPLE_TEMP_READY_EVT, 100);
+			printf("start measure success\n");
+		}else{
+			printf("start measure failed\n");
+			osal_start_timerEx(GenericApp_TaskID, SAMPLE_TEMP_EVT, sampleTempTimeDelay);
+		}
 		return events ^ SAMPLE_TEMP_EVT;
 	}
 	
 	if(events & SAMPLE_HUM_EVT){
-		sampleTask |= SAMPLE_HUM_START_TASK | SAMPLE_HUM_READY_TASK;
-		EndSampleTask();
+//		sampleTask |= SAMPLE_HUM_START_TASK | SAMPLE_HUM_READY_TASK;
+//		EndSampleTask();
 		return events ^ SAMPLE_HUM_EVT;
 	}
 	
@@ -442,6 +451,20 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
 	if(events & REQUEST_SYNC_CLOCK_EVT){
 		EndRequestSyncClock();
 		return events^ REQUEST_SYNC_CLOCK_EVT;
+	}
+
+	
+	if(events & SAMPLE_TEMP_READY_EVT){
+//		EndSampleTask();
+		uint16 res;
+		res = TMP275_ReadTemp();
+		float real;
+		real = res * 0.0625 ;
+		int16 result;
+		result = (int16) (real * 100);
+		printf("tmp:%d.%02d",result/100,result % 100);
+		osal_start_timerEx(GenericApp_TaskID, SAMPLE_TEMP_EVT, sampleTempTimeDelay);
+		return events ^ SAMPLE_TEMP_READY_EVT;
 	}
 
   return 0;
@@ -759,11 +782,11 @@ static int16 EndReadTemp(){
 
     int16 res;
 	res = 0xFFFF;
-	if(SHT2X_MeasureReady(TEMP_MEASURE_N_MASTER)){
-		res = SHT2X_ReadMeasure(TEMP_MEASURE_N_MASTER);
+	if(TMP275_startMeasure()){
+		res = TMP275_ReadTemp();
 	}
 
-	printf("temp:%d.%02d\n",res/100,res %100);
+	printf("temp:%4x\n",res);
 
 
 	return res;

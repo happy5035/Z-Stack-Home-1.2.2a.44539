@@ -32,7 +32,7 @@
 
 void putchar(char c);
 void putchar(char c){
-  HalUARTWrite(HAL_UART_PORT_1,(uint8*)&c,1);
+  HalUARTWrite(HAL_UART_PORT_0,(uint8*)&c,1);
 }
 
 static void printchar(char **str, int c)
