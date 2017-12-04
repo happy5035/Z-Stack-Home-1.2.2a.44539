@@ -3,5 +3,5 @@
 
 #include "ZComDef.h"
 uint8 TMP275_startMeasure(void);
-uint16 TMP275_ReadTemp(void);
+int16 TMP275_ReadTemp(void);
 #endif

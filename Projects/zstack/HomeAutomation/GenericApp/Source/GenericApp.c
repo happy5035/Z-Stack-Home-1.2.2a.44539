@@ -184,6 +184,7 @@ uint8 extAddr[Z_EXTADDR_LEN];
 tempPacket_t packetHead; 
 //存储湿度数据
 static FifoQueue humQueue;
+uint32 startSampleTime;
 
 
 typedef struct{
@@ -384,10 +385,10 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
 				HalLedSet(HAL_LED_3, HAL_LED_MODE_ON);
 				//开启采样和发送定时器
 				EndRequestSyncClock();
-				osal_start_timerEx(GenericApp_TaskID, SAMPLE_TEMP_EVT, sampleTempTimeDelay);
-                osal_start_reload_timer(GenericApp_TaskID, SAMPLE_HUM_EVT, sampleHumTimeDelay);
+				osal_start_reload_timer(GenericApp_TaskID, SAMPLE_TEMP_EVT, sampleTempTimeDelay);
+//                osal_start_reload_timer(GenericApp_TaskID, SAMPLE_HUM_EVT, sampleHumTimeDelay);
 				osal_start_reload_timer(GenericApp_TaskID, TEMP_PACKET_SEND_EVT, tempPacketSendTimeDelay);
-//				EndTempSampleCfg();
+				EndTempSampleCfg();
 				osal_start_reload_timer(GenericApp_TaskID, REQUEST_SYNC_CLOCK_EVT, requestSyncClockDelay);
 				osal_pwrmgr_device(PWRMGR_BATTERY);
 			}
@@ -415,14 +416,8 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
 	if(events & SAMPLE_TEMP_EVT){
 //		sampleTask |= SAMPLE_TEMP_START_TASK | SAMPLE_TEMP_READY_TASK;
 //		EndSampleTask();
-
-		if(TMP275_startMeasure()){
-			osal_start_timerEx(GenericApp_TaskID, SAMPLE_TEMP_READY_EVT, 100);
-			printf("start measure success\n");
-		}else{
-			printf("start measure failed\n");
-			osal_start_timerEx(GenericApp_TaskID, SAMPLE_TEMP_EVT, sampleTempTimeDelay);
-		}
+		EndReadTemp();
+		
 		return events ^ SAMPLE_TEMP_EVT;
 	}
 	
@@ -454,18 +449,18 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
 	}
 
 	
-	if(events & SAMPLE_TEMP_READY_EVT){
-//		EndSampleTask();
-		uint16 res;
-		res = TMP275_ReadTemp();
-		float real;
-		real = res * 0.0625 ;
-		int16 result;
-		result = (int16) (real * 100);
-		printf("tmp:%d.%02d",result/100,result % 100);
-		osal_start_timerEx(GenericApp_TaskID, SAMPLE_TEMP_EVT, sampleTempTimeDelay);
-		return events ^ SAMPLE_TEMP_READY_EVT;
-	}
+//	if(events & SAMPLE_TEMP_READY_EVT){
+////		EndSampleTask();
+//		uint16 res;
+//		res = TMP275_ReadTemp();
+//		float real;
+//		real = res * 0.0625 ;
+//		int16 result;
+//		result = (int16) (real * 100);
+//		printf("tmp:%d.%02d",result/100,result % 100);
+//		osal_start_timerEx(GenericApp_TaskID, SAMPLE_TEMP_EVT, sampleTempTimeDelay);
+//		return events ^ SAMPLE_TEMP_READY_EVT;
+//	}
 
   return 0;
 }
@@ -775,19 +770,34 @@ static void EndTempSampleCfg(void){
 //	TR0 				= 0X01; 					/*这里我让AD和温度传感器相连*/
 //	ATEST				= 0X01; 					/*启动温度传感器*/
 //	tempStatus = TEMP_MEAUSRE_START_STATUS;
+	startSampleTime = osal_getClock();
+	if(TMP275_startMeasure()){ 
+		printf("start measure success\n");
+	}else{
+		printf("start measure failed\n"); 
+	}
 
 }
 
 static int16 EndReadTemp(){
-
-    int16 res;
-	res = 0xFFFF;
-	if(TMP275_startMeasure()){
-		res = TMP275_ReadTemp();
+    int16 temp;
+	temp = TMP275_ReadTemp();
+	sendData_t dataPacket;
+	dataPacket.utcSecs = startSampleTime;
+	startSampleTime = osal_getClock();
+	dataPacket.data = temp;
+	uint8 res;
+	res = QueueIn(&tempQueue,&dataPacket);
+	if(res == QueueFull){
+		printf("temp queue full");
 	}
+	printf("temp:%d.%02d\n",temp/100,temp%100);
 
-	printf("temp:%4x\n",res);
-
+	if(TMP275_startMeasure()){ 
+		printf("start measure success\n");
+	}else{
+		printf("start measure failed\n"); 
+	}
 
 	return res;
 
