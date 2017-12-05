@@ -25,6 +25,7 @@ SDA定义为P1.5
 #define SDADIR  0x04
 #define PDIR 	P1DIR
 #define PSEL    P1SEL
+#define WAIT_TIME		5
 
 //#define SDA 	P0_0
 //#define PDIR 	P0DIR
@@ -102,44 +103,45 @@ void IIC_Start(void)
 {
     WriteSDA1();
     WriteSCL1();
-    delay_us(5);
+    delay_us(WAIT_TIME);
     WriteSDA0();
-    delay_us(5);
+    delay_us(WAIT_TIME);
     WriteSCL0();
-    delay_us(5);//锁住IIC 总线，准备发送或接收数据
+    delay_us(WAIT_TIME);//锁住IIC 总线，准备发送或接收数据
 }
 
 /*终止I2C总线，当SCL为高电平时使SDA产生一个正跳变*/
 void IIC_Stop(void)
 {
     WriteSDA0();
-    delay_us(5);
+    delay_us(WAIT_TIME);
     WriteSCL1();
-    delay_us(5);
+    delay_us(WAIT_TIME);
     WriteSDA1();
-    delay_us(5);
+    delay_us(WAIT_TIME);
     WriteSCL0();
-    delay_us(5);
+    delay_us(WAIT_TIME);
 }
 
 /*发送0，在SCL为高电平时使SDA信号为低*/
 void SEND_0(void)   /* SEND ACK */
 {
     WriteSDA0();
+    delay_us(WAIT_TIME);
     WriteSCL1();
-    delay_us(5);
+    delay_us(WAIT_TIME);
     WriteSCL0();
-    delay_us(5);
+    delay_us(WAIT_TIME);
 }
 
 /*发送1，在SCL为高电平时使SDA信号为高*/
 void SEND_1(void)
 {
     WriteSDA1();
+    delay_us(WAIT_TIME);
     WriteSCL1();
-    delay_us(5);
+    delay_us(WAIT_TIME);
     WriteSCL0();
-    delay_us(5);
 }
 
 /*发送完一个字节后检验设备的应答信号*/    
@@ -147,24 +149,25 @@ char IIC_Wait_Ack(void)
 {
 	bool bit;
     WriteSDA1();
+    delay_us(WAIT_TIME);
     WriteSCL1();
-    delay_us(5);
+    delay_us(WAIT_TIME);
 	ReadSDA();
+    delay_us(WAIT_TIME);
     bit=SDA;
-    delay_us(5);
     WriteSCL0();
-    delay_us(5);
+    delay_us(WAIT_TIME);
     return bit;
 }
 
 void Write_Acknowledge(void)
 {
     WriteSDA0();   
-    delay_us(5);
+    delay_us(WAIT_TIME);
     WriteSCL1();   
-    delay_us(5);
+    delay_us(WAIT_TIME);
     WriteSCL0();   
-    delay_us(5);
+    delay_us(WAIT_TIME);
 }
 
 /*向I2C总线写一个字节*/
@@ -196,13 +199,15 @@ uint8 IIC_Read_Byte(void)
     for(i=0;i<8;i++)
     {   
         WriteSCL0();
-        delay_us(5);
+        delay_us(WAIT_TIME);
         WriteSCL1(); 
-        delay_us(5);
+        delay_us(WAIT_TIME);
 		receive <<=1;
         if(SDA) receive ++;
     }
-//    WriteSCL0();
+    
+	WriteSCL0();
+    delay_us(WAIT_TIME);
     Write_Acknowledge();
     return receive; 
 }
