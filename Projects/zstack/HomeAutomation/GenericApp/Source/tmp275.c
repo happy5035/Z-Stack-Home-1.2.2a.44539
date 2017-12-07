@@ -33,7 +33,7 @@ uint8 TMP275_startMeasure(){
 	if(IIC_Wait_Ack() == 0){
 		IIC_Send_Byte(CONIFG_REG_POINTER);
 		if(IIC_Wait_Ack() == 0){
-			IIC_Send_Byte(SHUTDOWN_MODEL | ONE_SHOT_MODEL | RESOLUTION_10 | THERMOSTAT);
+			IIC_Send_Byte(SHUTDOWN_MODEL | ONE_SHOT_MODEL | RESOLUTION_12 | THERMOSTAT);
 			if(IIC_Wait_Ack() == 0) {
 				IIC_Stop();
 				res =  TRUE;
