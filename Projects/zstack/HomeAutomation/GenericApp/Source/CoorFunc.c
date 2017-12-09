@@ -22,7 +22,9 @@ uint8 MasterSetFreq(mtSysAppMsg_t *pkt);
     协调器处理终端发送的温度湿度数据包
 -------------------------------------------------------------------------*/
 void CoorProcessTempHumData(afIncomingMSGPacket_t *pkt){
+#ifdef MT_TASK
 	MT_BuildAndSendZToolResponse(MT_RSP_CMD_APP, MT_APP_MSG, pkt->cmd.DataLength, pkt->cmd.Data);
+#endif
 }
 
 
@@ -31,8 +33,10 @@ void CoorProcessTempHumData(afIncomingMSGPacket_t *pkt){
     通过串口发送协调器启动
 -------------------------------------------------------------------------*/
 void CoorSendCoorStart(void){
+#ifdef MT_TASK
 	uint8 cmd = COOR_START_CMD;
 	MT_BuildAndSendZToolResponse(MT_RSP_CMD_APP, MT_APP_MSG, 1, &cmd);
+#endif
 }
 
 /*   P R O C E S S   M T   S Y S   M S G   */
@@ -55,7 +59,10 @@ void CoorProcessMtSysMsg(mtSysAppMsg_t *pkt){
 		default:
 			break;
 	}
+    
+#ifdef MT_TASK
 	MT_BuildAndSendZToolResponse(MT_RSP_CMD_APP, MT_APP_MSG, 1, &retValue);
+#endif
 	
 }
 /*   C O R   S E N D   C L O C K   */
