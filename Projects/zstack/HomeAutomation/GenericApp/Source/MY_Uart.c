@@ -16,7 +16,7 @@ void MY_UartInit ()
 
   /* UART Configuration */
   uartConfig.configured           = TRUE;
-  uartConfig.baudRate             = MT_UART_DEFAULT_BAUDRATE;
+  uartConfig.baudRate             = MT_UART_DEFAULT_BAUDRATE; 
   uartConfig.flowControl          = MT_UART_DEFAULT_OVERFLOW;
   uartConfig.flowControlThreshold = MT_UART_DEFAULT_THRESHOLD;
   uartConfig.rx.maxBufSize        = MT_UART_DEFAULT_MAX_RX_BUFF;

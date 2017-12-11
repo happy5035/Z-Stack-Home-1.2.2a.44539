@@ -25,7 +25,7 @@ void WriteAlert1(void);
 
 uint8 TMP275_startMeasure(){
 	uint8 res;
-	delay_us(50);
+//	delay_us(10);
 	IIC_Config();
 	IIC_Start();
 	IIC_Send_Byte(0x90); //addr 0,write
@@ -54,7 +54,7 @@ int16 TMP275_ReadTemp(){
 	uint8 byte2;
 	int16 temp;
 	temp = 0xFFFF;
-	delay_us(50);
+//	delay_us(10);
 	IIC_Start();
 	IIC_Send_Byte(0x90); //addr 0,write
 	if(IIC_Wait_Ack() == 0){

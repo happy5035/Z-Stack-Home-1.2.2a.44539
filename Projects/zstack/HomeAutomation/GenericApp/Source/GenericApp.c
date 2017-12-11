@@ -788,15 +788,15 @@ static int16 EndReadTemp(){
 	dataPacket.data = temp;
 	uint8 res;
 	res = QueueIn(&tempQueue,&dataPacket);
-	if(res == QueueFull){
-		printf("temp queue full");
-	}
-	printf("temp:%d.%02d\n",temp/100,temp%100);
+//	if(res == QueueFull){
+//		printf("temp queue full");
+//	}
+//	printf("temp:%d.%02d\n",temp/100,temp%100);
 
 	if(TMP275_startMeasure()){ 
-		printf("start measure success\n");
+//		printf("start measure success\n");
 	}else{
-		printf("start measure failed\n"); 
+//		printf("start measure failed\n"); 
 	}
 
 	return res;

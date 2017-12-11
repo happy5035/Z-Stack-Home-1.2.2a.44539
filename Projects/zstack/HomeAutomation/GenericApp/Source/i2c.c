@@ -12,27 +12,29 @@ SDA定义为P1.5
 //#define SCLDIR  0x20
 //#define SDADIR  0x10
 
-//#define SCL 	P0_1
-//#define SCLDIR  0x02
-//#define SDA 	P0_0
-//#define SDADIR  0x01
-//#define PDIR 	P0DIR
-//#define PSEL    P0SEL
-
 #define SCL 	P0_1
 #define SCLDIR  0x02
 #define SDA 	P0_0
 #define SDADIR  0x01
 #define PDIR 	P0DIR
 #define PSEL    P0SEL
-#define WAIT_TIME		5
+
+//#define SCL 	P0_7
+//#define SCLDIR  0x80
+//#define SDA 	P0_6
+//#define SDADIR  0x40
+//#define PDIR 	P0DIR
+//#define PSEL    P0SEL
+#define WAIT_TIME		1
 
 //#define SDA 	P0_0
 //#define PDIR 	P0DIR
 //#define SCLDIR  0x02
 //#define SDADIR  0x01
 
-
+uint8 sta[16] = {
+ 0x00,0x08,0x04,0x0C,0x02,0x0A,0x06,0x0E,0x01,0x09,0x05,0x0D,0x03,0x0B,0x07,0x0F
+};
 
 /*
 一个nop就是一条机器指令周期 = 1/32MHz
@@ -40,17 +42,17 @@ SDA定义为P1.5
 ----这里是outman给我做出的讲解,在此再作感谢
 */
 void delay_us(uint8 microSecs) {
-  while(microSecs--)
-  {
-    /* 32 NOPs == 1 usecs */
-    asm("nop"); asm("nop"); asm("nop"); asm("nop"); asm("nop");
-    asm("nop"); asm("nop"); asm("nop"); asm("nop"); asm("nop");
-    asm("nop"); asm("nop"); asm("nop"); asm("nop"); asm("nop");
-    asm("nop"); asm("nop"); asm("nop"); asm("nop"); asm("nop");
-    asm("nop"); asm("nop"); asm("nop"); asm("nop"); asm("nop");
-    asm("nop"); asm("nop"); asm("nop"); asm("nop"); asm("nop");
-    asm("nop"); asm("nop");
-  }
+//  while(microSecs--)
+//  {
+//    /* 32 NOPs == 1 usecs */
+////    asm("nop"); asm("nop"); asm("nop"); asm("nop"); asm("nop");
+////    asm("nop"); asm("nop"); asm("nop"); asm("nop"); asm("nop");
+////    asm("nop"); asm("nop"); asm("nop"); asm("nop"); asm("nop");
+////    asm("nop"); asm("nop"); asm("nop"); asm("nop"); asm("nop");
+////    asm("nop"); asm("nop"); asm("nop"); asm("nop"); asm("nop");
+//   // asm("nop"); asm("nop"); asm("nop"); //asm("nop"); asm("nop");
+////    asm("nop"); asm("nop");
+//  }
 }
 
 unsigned char error; /*错误提示,全局变量*/
@@ -68,28 +70,30 @@ P1口DIR应该是0010 0000
 
 void IIC_Config(void){
     PSEL &=~(SDADIR|SCLDIR);
+    PDIR |= SCLDIR;
+    PDIR |= SDADIR;
 }
 void WriteSDA1(void)//SDA 输出1,相当于51里面的SDA=1
 {
-         PDIR |= SDADIR;
+//         PDIR |= SDADIR;
          SDA = 1;
     }
     
 void WriteSDA0(void)//SDA 输出0  
 {
-     PDIR |= SDADIR;
+//     PDIR |= SDADIR;
      SDA = 0;
 }
     
 void WriteSCL1(void)//SCL 输出1  
 {
-     PDIR |= SCLDIR;
+//     PDIR |= SCLDIR;
      SCL = 1;
 }
 
 void WriteSCL0(void)//SCL 输出1 
 {
-     PDIR |= SCLDIR;
+//     PDIR |= SCLDIR;
      SCL = 0;
 }
 
@@ -127,20 +131,20 @@ void IIC_Stop(void)
 void SEND_0(void)   /* SEND ACK */
 {
     WriteSDA0();
-    delay_us(WAIT_TIME);
+//    delay_us(WAIT_TIME);
     WriteSCL1();
-    delay_us(WAIT_TIME);
+//    delay_us(WAIT_TIME);
     WriteSCL0();
-    delay_us(WAIT_TIME);
+//    delay_us(WAIT_TIME);
 }
 
 /*发送1，在SCL为高电平时使SDA信号为高*/
 void SEND_1(void)
 {
     WriteSDA1();
-    delay_us(WAIT_TIME);
+//    delay_us(WAIT_TIME);
     WriteSCL1();
-    delay_us(WAIT_TIME);
+//    delay_us(WAIT_TIME);
     WriteSCL0();
 }
 
@@ -155,6 +159,7 @@ char IIC_Wait_Ack(void)
 	ReadSDA();
     delay_us(WAIT_TIME);
     bit=SDA;
+    PDIR |= SDADIR;
     WriteSCL0();
     delay_us(WAIT_TIME);
     return bit;
@@ -170,21 +175,50 @@ void Write_Acknowledge(void)
     delay_us(WAIT_TIME);
 }
 
+
 /*向I2C总线写一个字节*/
 void IIC_Send_Byte(uint8 b)
 {
-    uint8 i;
-    for(i=0;i<8;i++)
-    {
-      if((b<<i)&0x80)
-      {
-         SEND_1();
-      }
-      else
-      {
-         SEND_0();
-      }
-    }
+    uint8 d = 0;
+    d |= (sta[b&0x0F]) << 4;
+    d |= sta[b>>4];
+      SDA = (d>>0)& 0x01;
+      SCL = 1;
+      SCL = 0;
+      SDA = (d>>1)& 0x01;
+      SCL = 1;
+      SCL = 0;
+      SDA = (d>>2)& 0x01;
+      SCL = 1;
+      SCL = 0;
+      SDA = (d>>3)& 0x01;
+      SCL = 1;
+      SCL = 0;
+      SDA = (d>>4)& 0x01;
+      SCL = 1;
+      SCL = 0;
+      SDA = (d>>5)& 0x01;
+      SCL = 1;
+      SCL = 0;
+      SDA = (d>>6)& 0x01;
+      SCL = 1;
+      SCL = 0;
+      SDA = (d>>7)& 0x01;
+      SCL = 1;
+      SCL = 0;
+
+//    uint8 i;
+//    for(i=0;i<8;i++)
+//    {
+//      if((b<<i)&0x80)
+//      {
+//         SEND_1();
+//      }
+//      else
+//      {
+//         SEND_0();
+//      }
+//    }
 }
 
 /*从I2C总线读一个字节*/
@@ -205,7 +239,7 @@ uint8 IIC_Read_Byte(void)
 		receive <<=1;
         if(SDA) receive ++;
     }
-    
+    PDIR |= SDADIR;
 	WriteSCL0();
     delay_us(WAIT_TIME);
     Write_Acknowledge();
