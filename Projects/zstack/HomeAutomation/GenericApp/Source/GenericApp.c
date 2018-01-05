@@ -680,6 +680,7 @@ static void EndStartProcess(){
 		HalLedSet(HAL_LED_3, HAL_LED_MODE_ON);
 		reportStatus = reportInit;
 		startProcessStatus = startProcessReport;
+		EndReadNvParams();
 	}
 	if(startProcessStatus == startProcessReport){
 		EndReportStatus();
@@ -850,6 +851,7 @@ static void EndSyncParams(afIncomingMSGPacket_t* pkt){
 	if(len >=5){
 		uint8 _paramsVersion  = *data++;
 		paramsVersion = _paramsVersion;
+		osal_nv_write(NV_PARAM_VERSION, 0, 1, &paramsVersion);
 		uint32 paramsFlags = osal_build_uint32(data, 4);
 		data +=4;
 		if(paramsFlags!=0){
