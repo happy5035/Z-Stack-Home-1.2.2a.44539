@@ -752,7 +752,7 @@ static void EndReportStatus(void){
 				GenericApp_DstAddr.addr.shortAddr = 0x00;
 				reportPacketID = GenericApp_TransID;
 				if (AF_DataRequest(&GenericApp_DstAddr, &GenericApp_epDesc, 
-						TEMP_HUM_DATA_CLUSTERID, 
+						END_STATUS_CLUSTERID, 
 						len, //(byte)osal_strlen( theMessageData ) + 1,
 					(byte *) packet, 
 						&GenericApp_TransID, 
