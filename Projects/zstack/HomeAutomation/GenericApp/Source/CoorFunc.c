@@ -156,19 +156,75 @@ uint8 MasterSetFreq(mtSysAppMsg_t *pkt){
 }
 
 void CoorProcessEndStatus(afIncomingMSGPacket_t *pkt){
-	uint16 paramsFlag;
+	uint32 paramsFlag;
 	paramsFlag = 0;
 	uint8* data = pkt->cmd.Data;
 	*data++;
-	uint8 len = pkt->cmd.DataLength;
 	endStatus_t eStatus;
 	osal_memcpy(&eStatus,data,sizeof(endStatus_t));
 	uint8* buf = osal_mem_alloc(4);
-	osal_nv_read(NV_PARAM_VERSION, 0, 4, buf);
-	uint8 _paramsVersion = osal_build_uint16(buf);
+	osal_nv_read(NV_PARAM_VERSION, 0, 1, buf);
+	uint8 _paramsVersion = *buf;
 	if(_paramsVersion == eStatus.paramsVersion){
 		printf("same params version %d",_paramsVersion);
 	}else{
+		printf("new params version %d",_paramsVersion);
+		osal_nv_read(NV_PARAM_FLAGS,0,4,buf);
+		paramsFlag = osal_build_uint32(buf, 4);
+		printf("params flags %d",paramsFlag);
+		if(paramsFlag != 0){
+			uint8 *packet;
+			uint8 len;
+			len = 17;
+			packet = osal_mem_alloc(len);
+			uint8* _packet = packet;
+			*_packet++ = _paramsVersion;
+			if(paramsFlag & PARAMS_FLAGS_CLOCK){
+				osal_buffer_uint32(buf, osal_getClock());
+				osal_memcpy(_packet,buf,4);
+				_packet +=4;
+			}else{
+				len -=4;
+			}
+			if(paramsFlag & PARAMS_FLAGS_TEMP_TIME){
+				osal_nv_read(NV_TEMP_SAMPLE_TIME, 0, 4, _packet);
+				_packet+=4;
+			}else{
+				len -=4;
+			}
+			
+			if(paramsFlag & PARAMS_FLAGS_HUM_TIME){
+				osal_nv_read(PARAMS_FLAGS_HUM_TIME, 0, 4, _packet);
+				_packet+=4;
+			}else{
+				len -=4;
+			}
+			
+			if(paramsFlag & PARAMS_FLAGS_SYNC_CLOCK_TIME){
+				osal_nv_read(PARAMS_FLAGS_SYNC_CLOCK_TIME, 0, 4, _packet);
+				_packet+=4;
+			}else{
+				len -=4;
+			}
+			if(len >1){
+				GenericApp_DstAddr.addrMode = (afAddrMode_t)Addr16Bit;
+				GenericApp_DstAddr.endPoint = GENERICAPP_ENDPOINT;
+				GenericApp_DstAddr.addr.shortAddr = pkt->srcAddr.addr.shortAddr;
+				if (AF_DataRequest(&GenericApp_DstAddr, &GenericApp_epDesc, 
+					SYNC_PARAM_CLUSTERID, 
+					len, 
+					(byte *) packet, 
+					&GenericApp_TransID, 
+					AF_DISCV_ROUTE, AF_DEFAULT_RADIUS) == afStatus_SUCCESS){				
+				}else{
+				}
+
+			}
+			
+			osal_mem_free(packet);
+
+		}
+		
 		
 	}
 

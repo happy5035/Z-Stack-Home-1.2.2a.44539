@@ -166,7 +166,7 @@ uint8 sampleTask = 0x00;
 
 uint32 requestSyncClockDelay = 600000; //10分钟同步一次时间
 
-uint8 paramsVersion = 0;
+uint8 paramsVersion = 1;
 
 //发送数据包
 typedef struct
@@ -387,10 +387,7 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
           #ifndef RTR_NWK
           printf("%d data confirm,status: 0x%x\n", sentTransID,sentStatus);
 		  #endif
-		  if(sentTransID == reportPacketID){
-			reportStatus = reportConfirm;
-			EndReportStatus();
-		  }
+		  
           if ( sentStatus != ZSuccess )
           {
             // The data wasn't delivered -- Do something
@@ -624,17 +621,18 @@ static void ReadNvParams(){
 	uint8* buf;
 	buf = osal_mem_alloc(4);
 	//读取参数版本
-	result = osal_nv_read(NV_PARAM_VERSION, 0, 4, buf);
+	result = osal_nv_read(NV_PARAM_VERSION, 0, 1, buf);
 	if(result == NV_OPER_FAILED){
-		osal_buffer_uint32(buf, paramsVersion);
-		osal_nv_item_init(NV_PARAM_VERSION, 4, buf);
+		*buf = paramsVersion;
+		osal_nv_item_init(NV_PARAM_VERSION, 1, buf);
 	}else{
-		paramsVersion = osal_build_uint32(buf, 4);
+		paramsVersion = *buf;
 	}
+	osal_nv_write(NV_PARAM_VERSION, 0, 1, &paramsVersion);
 	result = osal_nv_read(NV_PARAM_FLAGS, 0, 4, buf);
 	if(result == NV_OPER_FAILED){
 		osal_buffer_uint32(buf, 0);
-		osal_nv_item_init(NV_PARAM_FLAGS, 4, NULL);
+		osal_nv_item_init(NV_PARAM_FLAGS, 4, 0);
 	}
 	//读取温度采样频率
 	result = osal_nv_read(NV_TEMP_SAMPLE_TIME, 0, 4, buf);
