@@ -703,7 +703,7 @@ static void EndStartProcess(){
 	}
 	if(startProcessStatus == startProcessOver){
 		startProcessStatus = startProcessInit;
-		printf("start process over");
+		printf("start process over\n");
 	}
 	
     
@@ -852,6 +852,59 @@ static void EndSyncParams(afIncomingMSGPacket_t* pkt){
 		paramsVersion = _paramsVersion;
 		uint32 paramsFlags = osal_build_uint32(data, 4);
 		data +=4;
+		if(paramsFlags!=0){
+			if(paramsFlags & PARAMS_FLAGS_CLOCK){
+				osal_setClock(osal_build_uint32(data, 4));
+				printf("new clock :%d\n",osal_getClock());
+				data+=4;
+			}
+			uint8* buf;
+			buf = osal_mem_alloc(4);
+			if(paramsFlags & PARAMS_FLAGS_TEMP_TIME){
+				uint32 _sampleTempTimeDelay = osal_build_uint32(data, 4);
+				if(_sampleTempTimeDelay != sampleTempTimeDelay){
+					sampleTempTimeDelay = _sampleTempTimeDelay;
+					osal_buffer_uint32( buf, sampleTempTimeDelay);
+					osal_nv_write(NV_TEMP_SAMPLE_TIME, 0, 4,  buf);
+					printf("new temp time:%d\n",sampleTempTimeDelay);
+				}
+				data+=4;
+			}
+			if(paramsFlags & PARAMS_FLAGS_HUM_TIME){
+				uint32 _sampleHumTimeDelay = osal_build_uint32(data, 4);
+				if(_sampleHumTimeDelay != sampleHumTimeDelay){
+					sampleHumTimeDelay = _sampleHumTimeDelay;
+					osal_buffer_uint32( buf, sampleHumTimeDelay);
+					osal_nv_write(PARAMS_FLAGS_HUM_TIME, 0, 4,  buf);
+					printf("new hum time:%d\n",sampleHumTimeDelay);
+				}
+				data+=4;
+			}
+			if(paramsFlags & PARAMS_FLAGS_PACKET_TIME){
+				uint32 _tempPacketSendTimeDelay = osal_build_uint32(data, 4);
+				if(_tempPacketSendTimeDelay != tempPacketSendTimeDelay){
+					tempPacketSendTimeDelay = _tempPacketSendTimeDelay;
+					osal_buffer_uint32( buf, tempPacketSendTimeDelay);
+					osal_nv_write(PARAMS_FLAGS_PACKET_TIME, 0, 4,  buf);
+					printf("new packet time:%d\n",tempPacketSendTimeDelay);
+				}
+				data+=4;
+			}
+			if(paramsFlags & PARAMS_FLAGS_SYNC_CLOCK_TIME){
+				uint32 _requestSyncClockDelay = osal_build_uint32(data, 4);
+				if(_requestSyncClockDelay != requestSyncClockDelay){
+					requestSyncClockDelay = _requestSyncClockDelay;
+					osal_buffer_uint32( buf, requestSyncClockDelay);
+					osal_nv_write(PARAMS_FLAGS_SYNC_CLOCK_TIME, 0, 4,  buf);
+					printf("new sync clock time:%d\n",requestSyncClockDelay);
+				}
+				data+=4;
+			}
+
+			osal_mem_free(buf);
+			
+			
+		}
 		
 	}
 }
