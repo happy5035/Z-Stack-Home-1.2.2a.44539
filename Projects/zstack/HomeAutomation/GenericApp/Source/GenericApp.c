@@ -68,6 +68,7 @@
 #include "OSAL_PwrMgr.h"
 #include "sh20.h"
 #include "tmp275.h"
+#include "OSAL_Nv.h"
 
 #include "GenericApp.h"
 #include "DebugTrace.h"
@@ -196,6 +197,41 @@ uint32 lastSampleTempClock; //上次采集温度时间
 uint32 lastSampleHumClock; //上次采集湿度时间
 
 
+typedef struct{
+	uint16  netAddr;
+	uint8 	extAddr[Z_EXTADDR_LEN];
+	uint16 	vdd;
+	UTCTime	clock;
+	uint32	tempTime;
+	uint32	humTime;
+	uint32	packetTime;
+	uint32	syncClockTime; 
+}endStatus_t;
+endStatus_t endStatus;
+
+typedef enum{
+	startProcessInit,
+	startProcessReport,
+	startProcessSync,
+	startProcessStartTimer,
+	startProcessOver
+}startProcessStatus_e;
+startProcessStatus_e startProcessStatus;
+
+
+byte reportPacketID;
+//uint8 reportStatus; 
+typedef enum{
+	reportInit,
+	reportSend,
+	reportConfirm,
+	reportSucess
+}reportStatus_e;
+reportStatus_e reportStatus;
+uint32 reportConfirmTimeOut = 5000;
+uint8 reportReSendTimes = END_REPORT_RE_SEND_TIMES;
+
+
 
 /*********************************************************************
  * LOCAL FUNCTIONS
@@ -222,7 +258,8 @@ static void EndRequestSyncClock(void);
 //sync freq
 static void EndSetFreq(afIncomingMSGPacket_t *pkt);
 
-
+static void EndStartProcess(void);
+static void EndReportStatus(void);
 
 
 /*********************************************************************
@@ -353,6 +390,10 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
           #ifndef RTR_NWK
           printf("%d data confirm,status: 0x%x\n", sentTransID,sentStatus);
 		  #endif
+		  if(sentTransID == reportPacketID){
+			reportStatus = reportConfirm;
+			EndReportStatus();
+		  }
           if ( sentStatus != ZSuccess )
           {
             // The data wasn't delivered -- Do something
@@ -381,16 +422,9 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
 				HalLedSet(HAL_LED_2, HAL_LED_MODE_ON);
 			}
 			if(GenericApp_NwkState == DEV_END_DEVICE){
-				printf("end device start...\n");
-				HalLedSet(HAL_LED_3, HAL_LED_MODE_ON);
-				//开启采样和发送定时器
-				EndRequestSyncClock();
-				osal_start_reload_timer(GenericApp_TaskID, SAMPLE_TEMP_EVT, sampleTempTimeDelay);
-//                osal_start_reload_timer(GenericApp_TaskID, SAMPLE_HUM_EVT, sampleHumTimeDelay);
-				osal_start_reload_timer(GenericApp_TaskID, TEMP_PACKET_SEND_EVT, tempPacketSendTimeDelay);
-				EndTempSampleCfg();
-				osal_start_reload_timer(GenericApp_TaskID, REQUEST_SYNC_CLOCK_EVT, requestSyncClockDelay);
-				osal_pwrmgr_device(PWRMGR_BATTERY);
+				startProcessStatus = startProcessInit;
+				EndStartProcess();
+				
 			}
             
           }
@@ -446,6 +480,20 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
 	if(events & REQUEST_SYNC_CLOCK_EVT){
 		EndRequestSyncClock();
 		return events^ REQUEST_SYNC_CLOCK_EVT;
+	}
+
+	if(events & END_REPORT_CONFIRM_TIMEOUT_EVT){
+		if (reportStatus != reportSend){
+			osal_stop_timerEx(GenericApp_TaskID, END_REPORT_CONFIRM_TIMEOUT_EVT);
+		}else{	
+			reportReSendTimes --;
+			if(reportConfirm <=0  && reportConfirmTimeOut < 60000){
+				reportConfirmTimeOut =2 * reportConfirmTimeOut;
+				reportReSendTimes = END_REPORT_RE_SEND_TIMES;
+			}
+		}	
+		EndReportStatus();
+		return events^ END_REPORT_CONFIRM_TIMEOUT_EVT;
 	}
 
 	
@@ -559,10 +607,177 @@ static void GenericApp_MessageMSGCB( afIncomingMSGPacket_t *pkt )
 	case SYNC_FREQ_CLUSTERID:
 		EndSetFreq(pkt);
 		break;
+	case END_STATUS_CLUSTERID:
+		CoorProcessEndStatus(pkt);
+		break;
 	default :
 		break;
   }
 }
+
+static void EndStartProcess(){
+	if(startProcessStatus == startProcessInit){
+		printf("end device start...\n");
+		HalLedSet(HAL_LED_3, HAL_LED_MODE_ON);
+		reportStatus = reportInit;
+		startProcessStatus = startProcessReport;
+	}
+	if(startProcessStatus == startProcessReport){
+		EndReportStatus();
+	}
+	if(startProcessStatus == startProcessSync){
+		startProcessStatus = startProcessStartTimer;
+	}
+	
+	if(startProcessStatus == startProcessStartTimer){
+		
+		//开启采样和发送定时器
+		//EndRequestSyncClock();
+		osal_start_reload_timer(GenericApp_TaskID, SAMPLE_TEMP_EVT, sampleTempTimeDelay);
+	//	osal_start_reload_timer(GenericApp_TaskID, SAMPLE_HUM_EVT, sampleHumTimeDelay);
+		osal_start_reload_timer(GenericApp_TaskID, TEMP_PACKET_SEND_EVT, tempPacketSendTimeDelay);
+		EndTempSampleCfg();
+		osal_start_reload_timer(GenericApp_TaskID, REQUEST_SYNC_CLOCK_EVT, requestSyncClockDelay);
+		osal_pwrmgr_device(PWRMGR_BATTERY);
+		startProcessStatus = startProcessOver;
+	}
+	if(startProcessStatus == startProcessOver){
+		startProcessStatus = startProcessInit;
+		printf("start process over");
+	}
+	
+    
+
+
+}
+
+/*   E N D   R E P O R T   S T A T U S   */
+/*-------------------------------------------------------------------------
+    终端报告设备状态
+-------------------------------------------------------------------------*/
+static void EndReportStatus(void){
+	if(reportStatus == reportInit){
+		endStatus.netAddr = NLME_GetShortAddr();
+			osal_memcpy(endStatus.extAddr,extAddr,Z_EXTADDR_LEN);
+			endStatus.vdd = EndReadVcc();
+			endStatus.clock = osal_getClock();
+			uint8* buf ;
+			buf = osal_mem_alloc(4);
+			uint8 result;
+			//读取温度采样频率
+			result = osal_nv_read(NV_TEMP_SAMPLE_TIME, 0, 4, buf);
+			if(result == NV_OPER_FAILED){
+				osal_buffer_uint32(buf, sampleTempTimeDelay);
+				result = osal_nv_item_init(NV_TEMP_SAMPLE_TIME, 4, buf);
+				endStatus.tempTime = sampleTempTimeDelay;
+				if(result !=NV_OPER_FAILED ){
+					printf("init nv temp time success");
+				}
+					
+				else{
+					printf("init nv temp time failed");
+				}
+			}else{
+				endStatus.tempTime =  osal_build_uint32(buf, 4);
+			}
+			//读取湿度采样频率
+			result = osal_nv_read(NV_HUM_SAMPLE_TIME, 0, 4, buf);
+			if(result == NV_OPER_FAILED){
+				osal_buffer_uint32(buf, sampleHumTimeDelay);
+				result = osal_nv_item_init(NV_HUM_SAMPLE_TIME, 4, buf);
+				endStatus.humTime = sampleHumTimeDelay;
+				if(result !=NV_OPER_FAILED ){
+					printf("init nv hum time success");
+				}
+					
+				else{
+					printf("init nv hum time failed");
+				}
+			}else{
+				endStatus.humTime =  osal_build_uint32(buf, 4);
+			}
+			
+			//读取数据包发送频率
+			result = osal_nv_read(NV_PACKET_SEND_TIME, 0, 4, buf);
+			if(result == NV_OPER_FAILED){
+				osal_buffer_uint32(buf, tempPacketSendTimeDelay);
+				result = osal_nv_item_init(NV_PACKET_SEND_TIME, 4, buf);
+				endStatus.packetTime = tempPacketSendTimeDelay;
+				printf("init nv sample time");
+				if(result !=NV_OPER_FAILED ){
+					printf("init nv packet time success");
+				}
+					
+				else{
+					printf("init nv packet time failed");
+				}
+			}else{
+				endStatus.packetTime =	osal_build_uint32(buf, 4);
+			}
+			
+			//读取同步时钟发送频率
+			result = osal_nv_read(NV_SYNC_CLOCK_TIME, 0, 4, buf);
+			if(result == NV_OPER_FAILED){
+				osal_buffer_uint32(buf, requestSyncClockDelay);
+				result = osal_nv_item_init(NV_SYNC_CLOCK_TIME, 4, buf);
+				endStatus.syncClockTime = requestSyncClockDelay;
+				printf("init nv sample time");
+				if(result !=NV_OPER_FAILED ){
+					printf("init nv packet time success");
+				}
+					
+				else{
+					printf("init nv packet time failed");
+				}
+			}else{
+				endStatus.syncClockTime =  osal_build_uint32(buf, 4);
+			}
+			reportStatus = reportSend;
+
+	}
+	if( reportStatus == reportSend){
+		uint8* packet;
+			uint8 len;
+			len = sizeof(endStatus_t)+1;
+			packet = osal_mem_alloc(len);
+			*packet = END_REPORT_STATUS_CMD;
+			osal_memcpy(packet+1,&endStatus,len-1);
+			if(packet){
+				GenericApp_DstAddr.addrMode = (afAddrMode_t)Addr16Bit;
+				GenericApp_DstAddr.endPoint = GENERICAPP_ENDPOINT;
+				GenericApp_DstAddr.addr.shortAddr = 0x00;
+				reportPacketID = GenericApp_TransID;
+				if (AF_DataRequest(&GenericApp_DstAddr, &GenericApp_epDesc, 
+						TEMP_HUM_DATA_CLUSTERID, 
+						len, //(byte)osal_strlen( theMessageData ) + 1,
+					(byte *) packet, 
+						&GenericApp_TransID, 
+						AF_DISCV_ROUTE | AF_ACK_REQUEST, AF_DEFAULT_RADIUS) == afStatus_SUCCESS)
+					{
+						// Successfully requested to be sent.
+						HalLedBlink(HAL_LED_4, 1, 50, 500);
+						printf("send status success\n");
+					}else{
+						printf("send status failed\n");
+					}
+			}
+			osal_start_reload_timer(GenericApp_TaskID, END_REPORT_CONFIRM_TIMEOUT_EVT, reportConfirmTimeOut);
+
+	}
+	if(reportStatus == reportConfirm){
+		osal_stop_timerEx(GenericApp_TaskID, END_REPORT_CONFIRM_TIMEOUT_EVT);
+		reportStatus = reportSucess;	
+	}
+	if(reportStatus == reportSucess){
+		printf("report success");
+		reportStatus = reportInit;
+		startProcessStatus = startProcessSync;
+		EndStartProcess();
+	}
+	
+	
+}
+
 
 /*   E N D   S E T   C L O C K   */
 /*-------------------------------------------------------------------------

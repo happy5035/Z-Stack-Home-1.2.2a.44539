@@ -22,6 +22,7 @@
 #define TEMP_HUM_DATA_CLUSTERID  	  0xf4
 #define SYNC_FREQ_CLUSTERID	  	      0xF5
 #define SYNC_PARAM_CLUSTERID		  0xF6
+#define END_STATUS_CLUSTERID		  0xF7
 
 
 
@@ -40,6 +41,7 @@
 #define SAMPLE_TASK_EVT	  	  		  0x0010
 #define TEMP_PACKET_SEND_EVT		  0x0020
 #define REQUEST_SYNC_CLOCK_EVT		  0x0040
+#define END_REPORT_CONFIRM_TIMEOUT_EVT 0x0080
 
 
 //采集任务
@@ -57,6 +59,7 @@
 #define COOR_START_CMD				  0xF3
 #define MASTER_SET_CLOCK_CMD		  0xF4 
 #define MASTER_SET_FREQ_CMD	          0xF5
+#define END_REPORT_STATUS_CMD		  0xF6
 
 //uart constans
 // 命令格式为
@@ -70,6 +73,12 @@
 #define MT_RSP_CMD_APP				  ((uint8)MT_RPC_CMD_SRSP | (uint8)MT_RPC_SYS_APP)
 
 
+//参数nv存储位置
+#define NV_PARAM_VERSION				0x0401
+#define NV_TEMP_SAMPLE_TIME				0x0402
+#define NV_HUM_SAMPLE_TIME				0x0403
+#define NV_PACKET_SEND_TIME				0x0404
+#define NV_SYNC_CLOCK_TIME				0x0405
 
-
+#define END_REPORT_RE_SEND_TIMES		3
 #endif

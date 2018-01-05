@@ -153,3 +153,10 @@ uint8 MasterSetFreq(mtSysAppMsg_t *pkt){
 	return retValue;
 }
 
+void CoorProcessEndStatus(afIncomingMSGPacket_t *pkt){
+#ifdef MT_TASK
+	MT_BuildAndSendZToolResponse(MT_RSP_CMD_APP, MT_APP_MSG, pkt->cmd.DataLength, pkt->cmd.Data);
+#endif
+}
+
+
