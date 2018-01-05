@@ -166,12 +166,15 @@ uint8 sampleTask = 0x00;
 
 uint32 requestSyncClockDelay = 600000; //10分钟同步一次时间
 
+uint8 paramsVersion = 0;
+
 //发送数据包
 typedef struct
 {
 	uint16  netAddr;
 	uint8 	extAddr[Z_EXTADDR_LEN];
 	uint16 	vdd;
+	uint8   paramsVersion;
 	UTCTime tempStartTime;
 	uint16	sampleFreq;
 	uint8 	tempNumbers;
@@ -261,6 +264,8 @@ static void EndSetFreq(afIncomingMSGPacket_t *pkt);
 static void EndStartProcess(void);
 static void EndReportStatus(void);
 static void EndSyncParams(afIncomingMSGPacket_t *pkt);
+static void EndReadNvParams(void);
+
 
 /*********************************************************************
  * NETWORK LAYER CALLBACKS
@@ -616,6 +621,56 @@ static void GenericApp_MessageMSGCB( afIncomingMSGPacket_t *pkt )
 	default :
 		break;
   }
+}
+/*   U P D A T E   N V   P A R A M S   */
+/*-------------------------------------------------------------------------
+    读取flash的参数并更新
+-------------------------------------------------------------------------*/
+static void EndReadNvParams(){
+	uint8 result;
+	uint8* buf;
+	buf = osal_mem_alloc(4);
+	//读取参数版本
+	result = osal_nv_read(NV_PARAM_VERSION, 0, 4, buf);
+	if(result == NV_OPER_FAILED){
+		osal_buffer_uint32(buf, NV_PARAM_VERSION);
+		osal_nv_item_init(NV_SYNC_CLOCK_TIME, 4, buf);
+	}else{
+		paramsVersion = osal_build_uint32(buf, 4);
+	}
+	//读取温度采样频率
+	result = osal_nv_read(NV_TEMP_SAMPLE_TIME, 0, 4, buf);
+	if(result == NV_OPER_FAILED){
+		osal_buffer_uint32(buf, sampleTempTimeDelay);
+		osal_nv_item_init(NV_TEMP_SAMPLE_TIME, 4, buf);
+	}else{
+		sampleTempTimeDelay = osal_build_uint32(buf, 4);
+	}
+	//读取湿度采样频率
+	result = osal_nv_read(NV_HUM_SAMPLE_TIME, 0, 4, buf);
+	if(result == NV_OPER_FAILED){
+		osal_buffer_uint32(buf, sampleHumTimeDelay);
+		osal_nv_item_init(NV_HUM_SAMPLE_TIME, 4, buf);
+	}else{
+		sampleHumTimeDelay = osal_build_uint32(buf, 4);
+	}
+	//读取数据包发送频率
+	result = osal_nv_read(NV_PACKET_SEND_TIME, 0, 4, buf);
+	if(result == NV_OPER_FAILED){
+		osal_buffer_uint32(buf, tempPacketSendTimeDelay);
+		osal_nv_item_init(NV_PACKET_SEND_TIME, 4, buf);
+	}else{
+		tempPacketSendTimeDelay = osal_build_uint32(buf, 4);
+	}
+	//读取时间同步频率
+	result = osal_nv_read(NV_SYNC_CLOCK_TIME, 0, 4, buf);
+	if(result == NV_OPER_FAILED){
+		osal_buffer_uint32(buf, requestSyncClockDelay);
+		osal_nv_item_init(NV_SYNC_CLOCK_TIME, 4, buf);
+	}else{
+		requestSyncClockDelay = osal_build_uint32(buf, 4);
+	}
+	osal_mem_free(buf);
 }
 
 static void EndStartProcess(){
@@ -1090,9 +1145,12 @@ static uint8* EndBuildTempSendPacket(uint8* total_len,uint8 *temp_len,uint8* hum
 	packetHead.humStartTime = hum_start->utcSecs;
 	packetHead.humFreq = sampleHumTimeDelay;
 	packetHead.humNumbers = *hum_len;
-	printf("hum packet header:\n");
-	printf("sampleFreq:%d\n",packetHead.humFreq);
-	printf("numbers:%d\n",packetHead.humNumbers);
+	packetHead.paramsVersion = paramsVersion;
+	printf("vcc:%d\n",packetHead.vdd);
+	printf("temp packet header:\n");
+	printf("sampleFreq:%d\n",packetHead.sampleFreq);
+	printf("paramsVersion:%d\n",packetHead.paramsVersion);
+	printf("numbers:%d\n",packetHead.tempNumbers);
 
 	
 	//复制数据到发送数据包
