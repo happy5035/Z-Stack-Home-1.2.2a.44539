@@ -80,6 +80,7 @@
 #define NV_HUM_SAMPLE_TIME				0x0403
 #define NV_PACKET_SEND_TIME				0x0404
 #define NV_SYNC_CLOCK_TIME				0x0405
+#define NV_PARAM_FLAGS					0x0406
 
 #define END_REPORT_RE_SEND_TIMES		3
 
@@ -95,6 +96,7 @@ typedef struct{
 	uint16  netAddr;
 	uint8 	extAddr[Z_EXTADDR_LEN];
 	uint16 	vdd;
+	uint8	paramsVersion;
 	UTCTime	clock;
 	uint32	tempTime;
 	uint32	humTime;

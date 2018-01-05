@@ -163,40 +163,15 @@ void CoorProcessEndStatus(afIncomingMSGPacket_t *pkt){
 	uint8 len = pkt->cmd.DataLength;
 	endStatus_t eStatus;
 	osal_memcpy(&eStatus,data,sizeof(endStatus_t));
-	paramsFlag |= PARAMS_FLAGS_CLOCK;
-	uint8 result;
-	uint8* buf;
-	buf = osal_mem_alloc(4);
-	//读取温度采样频率
-	result = osal_nv_read(NV_TEMP_SAMPLE_TIME, 0, 4, buf);
-	if(result == NV_OPER_FAILED){
-		osal_buffer_uint32(buf, eStatus.tempTime);
-		osal_nv_item_init(NV_SYNC_CLOCK_TIME, 4, buf);
+	uint8* buf = osal_mem_alloc(4);
+	osal_nv_read(NV_PARAM_VERSION, 0, 4, buf);
+	uint8 _paramsVersion = osal_build_uint16(buf);
+	if(_paramsVersion == eStatus.paramsVersion){
+		printf("same params version %d",_paramsVersion);
+	}else{
+		
 	}
-	uint32 _tempTime =  osal_build_uint32(buf, 4);
-	if(_tempTime != eStatus.tempTime){
-		paramsFlag |= PARAMS_FLAGS_TEMP_TIME;
-	}
-	//读取湿度采样频率
-	result = osal_nv_read(NV_HUM_SAMPLE_TIME, 0, 4, buf);
-	if(result == NV_OPER_FAILED){
-		osal_buffer_uint32(buf, eStatus.humTime);
-		osal_nv_item_init(NV_HUM_SAMPLE_TIME, 4, buf);
-	}
-	//读取数据包发送频率
-	result = osal_nv_read(NV_PACKET_SEND_TIME, 0, 4, buf);
-	if(result == NV_OPER_FAILED){
-		osal_buffer_uint32(buf, eStatus.packetTime);
-		osal_nv_item_init(NV_PACKET_SEND_TIME, 4, buf);
-	}
-	//读取时间同步频率
-	result = osal_nv_read(NV_SYNC_CLOCK_TIME, 0, 4, buf);
-	if(result == NV_OPER_FAILED){
-		osal_buffer_uint32(buf, eStatus.syncClockTime);
-		osal_nv_item_init(NV_SYNC_CLOCK_TIME, 4, buf);
-	}
-	
-	
+
 	osal_mem_free(buf);
 	
 	

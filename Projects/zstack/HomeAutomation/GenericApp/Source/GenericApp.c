@@ -626,10 +626,15 @@ static void ReadNvParams(){
 	//读取参数版本
 	result = osal_nv_read(NV_PARAM_VERSION, 0, 4, buf);
 	if(result == NV_OPER_FAILED){
-		osal_buffer_uint32(buf, NV_PARAM_VERSION);
-		osal_nv_item_init(NV_SYNC_CLOCK_TIME, 4, buf);
+		osal_buffer_uint32(buf, paramsVersion);
+		osal_nv_item_init(NV_PARAM_VERSION, 4, buf);
 	}else{
 		paramsVersion = osal_build_uint32(buf, 4);
+	}
+	result = osal_nv_read(NV_PARAM_FLAGS, 0, 4, buf);
+	if(result == NV_OPER_FAILED){
+		osal_buffer_uint32(buf, 0);
+		osal_nv_item_init(NV_PARAM_FLAGS, 4, NULL);
 	}
 	//读取温度采样频率
 	result = osal_nv_read(NV_TEMP_SAMPLE_TIME, 0, 4, buf);
