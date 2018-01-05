@@ -632,12 +632,12 @@ static void EndReadNvParams(){
 	uint8* buf;
 	buf = osal_mem_alloc(4);
 	//读取参数版本
-	result = osal_nv_read(NV_PARAM_VERSION, 0, 4, buf);
+	result = osal_nv_read(NV_PARAM_VERSION, 0, 1, buf);
 	if(result == NV_OPER_FAILED){
-		osal_buffer_uint32(buf, NV_PARAM_VERSION);
-		osal_nv_item_init(NV_SYNC_CLOCK_TIME, 4, buf);
+		*buf = paramsVersion;
+		osal_nv_item_init(NV_PARAM_VERSION, 1, buf);
 	}else{
-		paramsVersion = osal_build_uint32(buf, 4);
+		paramsVersion = *buf;
 	}
 	//读取温度采样频率
 	result = osal_nv_read(NV_TEMP_SAMPLE_TIME, 0, 4, buf);
