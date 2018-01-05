@@ -11,6 +11,8 @@
 extern byte GenericApp_TransID;
 extern endPointDesc_t GenericApp_epDesc;
 extern afAddrType_t GenericApp_DstAddr;
+#include "OSAL_Nv.h"
+
 
 //	Local Function
 uint8 MasterSetClock(mtSysAppMsg_t *pkt); 
@@ -161,10 +163,17 @@ void CoorProcessEndStatus(afIncomingMSGPacket_t *pkt){
 	uint8 len = pkt->cmd.DataLength;
 	endStatus_t eStatus;
 	osal_memcpy(&eStatus,data,sizeof(endStatus_t));
-	printf("test\n");
+	if((osal_getClock() - eStatus > 60000) ||(eStatus - osal_getClock()   > 60000 ){
+		paramsFlag |= PARAMS_FLAGS_CLOCK;
+		eStatus.clock = osal_getClock();
+	}
+	uint8 result;
+	
+	//读取温度采样频率
+	result = osal_nv_read(NV_TEMP_SAMPLE_TIME, 0, 4, buf);
 	
 #ifdef MT_TASK
-	//MT_BuildAndSendZToolResponse(MT_RSP_CMD_APP, MT_APP_MSG, pkt->cmd.DataLength, pkt->cmd.Data);
+	MT_BuildAndSendZToolResponse(MT_RSP_CMD_APP, MT_APP_MSG, pkt->cmd.DataLength, pkt->cmd.Data);
 #endif
 }
 

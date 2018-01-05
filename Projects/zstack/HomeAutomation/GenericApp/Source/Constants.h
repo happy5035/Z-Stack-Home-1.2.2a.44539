@@ -83,6 +83,14 @@
 
 #define END_REPORT_RE_SEND_TIMES		3
 
+//参数同步标志
+#define PARAMS_FLAGS_CLOCK				0x0001
+#define PARAMS_FLAGS_TEMP_TIME			0x0002
+#define PARAMS_FLAGS_HUM_TIME			0x0004
+#define PARAMS_FLAGS_PACKET_TIME		0x0008
+#define PARAMS_FLAGS_SYNC_CLOCK_TIME	0x0010
+
+
 typedef struct{
 	uint16  netAddr;
 	uint8 	extAddr[Z_EXTADDR_LEN];
