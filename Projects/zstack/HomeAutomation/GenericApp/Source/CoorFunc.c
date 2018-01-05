@@ -175,10 +175,11 @@ void CoorProcessEndStatus(afIncomingMSGPacket_t *pkt){
 		if(paramsFlag != 0){
 			uint8 *packet;
 			uint8 len;
-			len = 17;
+			len = 4*5 +1;
 			packet = osal_mem_alloc(len);
 			uint8* _packet = packet;
 			*_packet++ = _paramsVersion;
+			_packet = osal_buffer_uint32(_packet, paramsFlag);
 			if(paramsFlag & PARAMS_FLAGS_CLOCK){
 				osal_buffer_uint32(buf, osal_getClock());
 				osal_memcpy(_packet,buf,4);
@@ -206,7 +207,7 @@ void CoorProcessEndStatus(afIncomingMSGPacket_t *pkt){
 			}else{
 				len -=4;
 			}
-			if(len >1){
+			if(len >5){
 				GenericApp_DstAddr.addrMode = (afAddrMode_t)Addr16Bit;
 				GenericApp_DstAddr.endPoint = GENERICAPP_ENDPOINT;
 				GenericApp_DstAddr.addr.shortAddr = pkt->srcAddr.addr.shortAddr;
