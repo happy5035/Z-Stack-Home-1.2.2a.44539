@@ -204,6 +204,7 @@ typedef struct{
 	uint16  netAddr;
 	uint8 	extAddr[Z_EXTADDR_LEN];
 	uint16 	vdd;
+	uint8	paramsVersion;
 	UTCTime	clock;
 	uint32	tempTime;
 	uint32	humTime;
@@ -720,6 +721,7 @@ static void EndReportStatus(void){
 			osal_memcpy(endStatus.extAddr,extAddr,Z_EXTADDR_LEN);
 			endStatus.vdd = EndReadVcc();
 			endStatus.clock = osal_getClock();
+			endStatus.paramsVersion = paramsVersion;
 			uint8* buf ;
 			buf = osal_mem_alloc(4);
 			uint8 result;
