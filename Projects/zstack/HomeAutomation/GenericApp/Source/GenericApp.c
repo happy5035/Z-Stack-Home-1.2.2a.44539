@@ -845,7 +845,15 @@ static void EndReportStatus(void){
     终端节点同步协调器设置参数
 -------------------------------------------------------------------------*/
 static void EndSyncParams(afIncomingMSGPacket_t* pkt){
-	printf(pkt->cmd.Data);
+	uint8* data = pkt->cmd.Data;
+	uint8 len = pkt->cmd.DataLength;
+	if(len >=5){
+		uint8 _paramsVersion  = *data++;
+		paramsVersion = _paramsVersion;
+		uint32 paramsFlags = osal_build_uint32(data, 4);
+		data +=4;
+		
+	}
 }
 
 
