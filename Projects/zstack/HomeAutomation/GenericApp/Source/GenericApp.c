@@ -737,6 +737,7 @@ static void EndReportStatus(void){
 				endStatus.syncClockTime =  osal_build_uint32(buf, 4);
 			}
 			reportStatus = reportSend;
+			osal_mem_free(buf);
 
 	}
 	if( reportStatus == reportSend){
