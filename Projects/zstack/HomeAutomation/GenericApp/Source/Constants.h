@@ -4,6 +4,7 @@
 #include "ZComDef.h"
 #include "MT_RPC.h"
 #include "MT.h"
+#include "OSAL_Clock.h"
 
 
 // These constants are only for example and should be changed to the
@@ -81,4 +82,15 @@
 #define NV_SYNC_CLOCK_TIME				0x0405
 
 #define END_REPORT_RE_SEND_TIMES		3
+
+typedef struct{
+	uint16  netAddr;
+	uint8 	extAddr[Z_EXTADDR_LEN];
+	uint16 	vdd;
+	UTCTime	clock;
+	uint32	tempTime;
+	uint32	humTime;
+	uint32	packetTime;
+	uint32	syncClockTime; 
+}endStatus_t;
 #endif

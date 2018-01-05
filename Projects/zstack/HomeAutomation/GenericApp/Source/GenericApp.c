@@ -197,16 +197,7 @@ uint32 lastSampleTempClock; //上次采集温度时间
 uint32 lastSampleHumClock; //上次采集湿度时间
 
 
-typedef struct{
-	uint16  netAddr;
-	uint8 	extAddr[Z_EXTADDR_LEN];
-	uint16 	vdd;
-	UTCTime	clock;
-	uint32	tempTime;
-	uint32	humTime;
-	uint32	packetTime;
-	uint32	syncClockTime; 
-}endStatus_t;
+
 endStatus_t endStatus;
 
 typedef enum{

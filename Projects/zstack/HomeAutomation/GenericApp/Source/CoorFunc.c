@@ -154,8 +154,17 @@ uint8 MasterSetFreq(mtSysAppMsg_t *pkt){
 }
 
 void CoorProcessEndStatus(afIncomingMSGPacket_t *pkt){
+	uint16 paramsFlag;
+	paramsFlag = 0;
+	uint8* data = pkt->cmd.Data;
+	*data++;
+	uint8 len = pkt->cmd.DataLength;
+	endStatus_t eStatus;
+	osal_memcpy(&eStatus,data,sizeof(endStatus_t));
+	printf("test\n");
+	
 #ifdef MT_TASK
-	MT_BuildAndSendZToolResponse(MT_RSP_CMD_APP, MT_APP_MSG, pkt->cmd.DataLength, pkt->cmd.Data);
+	//MT_BuildAndSendZToolResponse(MT_RSP_CMD_APP, MT_APP_MSG, pkt->cmd.DataLength, pkt->cmd.Data);
 #endif
 }
 
