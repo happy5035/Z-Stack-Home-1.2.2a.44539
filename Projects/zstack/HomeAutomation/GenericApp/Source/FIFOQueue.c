@@ -13,6 +13,7 @@ void QueueInit( FifoQueue *Queue)
 // Queue In
 uint8 QueueIn( FifoQueue *Queue,ElemType *sdat) //数据进入队列
 {
+	
     if((Queue->front == Queue->rear) && (Queue->count == QueueSize))
     {                    // full //判断如果队列满了
     	printStringLn("queue full");

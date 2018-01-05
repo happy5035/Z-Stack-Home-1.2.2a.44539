@@ -255,7 +255,8 @@ static void EndSetFreq(afIncomingMSGPacket_t *pkt);
 static void EndStartProcess(void);
 static void EndReportStatus(void);
 static void EndSyncParams(afIncomingMSGPacket_t *pkt);
-static void EndReadNvParams(void);
+static void ReadNvParams(void);
+
 
 
 /*********************************************************************
@@ -410,6 +411,7 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
           	if(GenericApp_NwkState == DEV_ZB_COORD){
 				printf("coordinator start...\n");
 				HalLedSet(HAL_LED_1, HAL_LED_MODE_ON);
+				ReadNvParams();
 				CoorSendCoorStart();
 //				osal_setClock(0x21AAEBCB);  //2017/11/24 16:40:00
 			}
@@ -613,12 +615,11 @@ static void GenericApp_MessageMSGCB( afIncomingMSGPacket_t *pkt )
 		break;
   }
 }
-
 /*   U P D A T E   N V   P A R A M S   */
 /*-------------------------------------------------------------------------
     读取flash的参数并更新
 -------------------------------------------------------------------------*/
-static void EndReadNvParams(){
+static void ReadNvParams(){
 	uint8 result;
 	uint8* buf;
 	buf = osal_mem_alloc(4);
@@ -664,13 +665,15 @@ static void EndReadNvParams(){
 	}
 	osal_mem_free(buf);
 }
+
+
 static void EndStartProcess(){
 	if(startProcessStatus == startProcessInit){
 		printf("end device start...\n");
 		HalLedSet(HAL_LED_3, HAL_LED_MODE_ON);
 		reportStatus = reportInit;
 		startProcessStatus = startProcessReport;
-		readNvParams();
+		
 	}
 	if(startProcessStatus == startProcessReport){
 		EndReportStatus();
