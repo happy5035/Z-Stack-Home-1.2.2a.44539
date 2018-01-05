@@ -260,7 +260,7 @@ static void EndSetFreq(afIncomingMSGPacket_t *pkt);
 
 static void EndStartProcess(void);
 static void EndReportStatus(void);
-
+static void EndSyncParams(afIncomingMSGPacket_t *pkt);
 
 /*********************************************************************
  * NETWORK LAYER CALLBACKS
@@ -610,6 +610,9 @@ static void GenericApp_MessageMSGCB( afIncomingMSGPacket_t *pkt )
 	case END_STATUS_CLUSTERID:
 		CoorProcessEndStatus(pkt);
 		break;
+	case SYNC_PARAM_CLUSTERID:
+		EndSyncParams(pkt);
+		break;
 	default :
 		break;
   }
@@ -626,6 +629,7 @@ static void EndStartProcess(){
 		EndReportStatus();
 	}
 	if(startProcessStatus == startProcessSync){
+	
 		startProcessStatus = startProcessStartTimer;
 	}
 	
@@ -776,6 +780,14 @@ static void EndReportStatus(void){
 	}
 	
 	
+}
+
+/*   E N D   S Y N C   P A R A M S   */
+/*-------------------------------------------------------------------------
+    终端节点同步协调器设置参数
+-------------------------------------------------------------------------*/
+static void EndSyncParams(afIncomingMSGPacket_t* pkt){
+	printf(pkt->cmd.Data);
 }
 
 
