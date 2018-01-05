@@ -646,6 +646,7 @@ static void EndReadNvParams(){
 		osal_nv_item_init(NV_TEMP_SAMPLE_TIME, 4, buf);
 	}else{
 		sampleTempTimeDelay = osal_build_uint32(buf, 4);
+		
 	}
 	//读取湿度采样频率
 	result = osal_nv_read(NV_HUM_SAMPLE_TIME, 0, 4, buf);
@@ -866,6 +867,7 @@ static void EndSyncParams(afIncomingMSGPacket_t* pkt){
 				uint32 _sampleTempTimeDelay = osal_build_uint32(data, 4);
 				if(_sampleTempTimeDelay != sampleTempTimeDelay){
 					sampleTempTimeDelay = _sampleTempTimeDelay;
+					osal_start_reload_timer(GenericApp_TaskID, SAMPLE_TEMP_EVT, sampleTempTimeDelay);
 					osal_buffer_uint32( buf, sampleTempTimeDelay);
 					osal_nv_write(NV_TEMP_SAMPLE_TIME, 0, 4,  buf);
 					printf("new temp time:%d\n",sampleTempTimeDelay);
@@ -875,7 +877,8 @@ static void EndSyncParams(afIncomingMSGPacket_t* pkt){
 			if(paramsFlags & PARAMS_FLAGS_HUM_TIME){
 				uint32 _sampleHumTimeDelay = osal_build_uint32(data, 4);
 				if(_sampleHumTimeDelay != sampleHumTimeDelay){
-					sampleHumTimeDelay = _sampleHumTimeDelay;
+					sampleHumTimeDelay = _sampleHumTimeDelay;
+//					osal_start_reload_timer(GenericApp_TaskID, SAMPLE_HUM_EVT, sampleHumTimeDelay);
 					osal_buffer_uint32( buf, sampleHumTimeDelay);
 					osal_nv_write(PARAMS_FLAGS_HUM_TIME, 0, 4,  buf);
 					printf("new hum time:%d\n",sampleHumTimeDelay);
@@ -886,6 +889,7 @@ static void EndSyncParams(afIncomingMSGPacket_t* pkt){
 				uint32 _tempPacketSendTimeDelay = osal_build_uint32(data, 4);
 				if(_tempPacketSendTimeDelay != tempPacketSendTimeDelay){
 					tempPacketSendTimeDelay = _tempPacketSendTimeDelay;
+					osal_start_reload_timer(GenericApp_TaskID, TEMP_PACKET_SEND_EVT, tempPacketSendTimeDelay);
 					osal_buffer_uint32( buf, tempPacketSendTimeDelay);
 					osal_nv_write(PARAMS_FLAGS_PACKET_TIME, 0, 4,  buf);
 					printf("new packet time:%d\n",tempPacketSendTimeDelay);
@@ -896,6 +900,7 @@ static void EndSyncParams(afIncomingMSGPacket_t* pkt){
 				uint32 _requestSyncClockDelay = osal_build_uint32(data, 4);
 				if(_requestSyncClockDelay != requestSyncClockDelay){
 					requestSyncClockDelay = _requestSyncClockDelay;
+					osal_start_reload_timer(GenericApp_TaskID, REQUEST_SYNC_CLOCK_EVT, requestSyncClockDelay);
 					osal_buffer_uint32( buf, requestSyncClockDelay);
 					osal_nv_write(PARAMS_FLAGS_SYNC_CLOCK_TIME, 0, 4,  buf);
 					printf("new sync clock time:%d\n",requestSyncClockDelay);
