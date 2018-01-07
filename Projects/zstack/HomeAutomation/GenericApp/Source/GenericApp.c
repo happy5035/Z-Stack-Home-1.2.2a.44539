@@ -235,6 +235,8 @@ reportStatus_e reportStatus;
 uint32 reportConfirmTimeOut = 5000;
 uint8 reportReSendTimes = END_REPORT_RE_SEND_TIMES;
 
+uint8 syncParamsStatus;
+
 
 
 /*********************************************************************
@@ -266,6 +268,7 @@ static void EndStartProcess(void);
 static void EndReportStatus(void);
 static void EndSyncParams(afIncomingMSGPacket_t *pkt);
 static void EndReadNvParams(void);
+static void EndSyncParamsProcess(void);
 
 
 /*********************************************************************
@@ -687,7 +690,7 @@ static void EndStartProcess(){
 		EndReportStatus();
 	}
 	if(startProcessStatus == startProcessSync){
-	
+		EndSyncParamsProcess();
 		startProcessStatus = startProcessStartTimer;
 	}
 	
@@ -801,31 +804,31 @@ static void EndReportStatus(void){
 	}
 	if( reportStatus == reportSend){
 		uint8* packet;
-			uint8 len;
-			len = sizeof(endStatus_t)+1;
-			packet = osal_mem_alloc(len);
-			*packet = END_REPORT_STATUS_CMD;
-			osal_memcpy(packet+1,&endStatus,len-1);
-			if(packet){
-				GenericApp_DstAddr.addrMode = (afAddrMode_t)Addr16Bit;
-				GenericApp_DstAddr.endPoint = GENERICAPP_ENDPOINT;
-				GenericApp_DstAddr.addr.shortAddr = 0x00;
-				reportPacketID = GenericApp_TransID;
-				if (AF_DataRequest(&GenericApp_DstAddr, &GenericApp_epDesc, 
-						END_STATUS_CLUSTERID, 
-						len, //(byte)osal_strlen( theMessageData ) + 1,
-					(byte *) packet, 
-						&GenericApp_TransID, 
-						AF_DISCV_ROUTE | AF_ACK_REQUEST, AF_DEFAULT_RADIUS) == afStatus_SUCCESS)
-					{
-						// Successfully requested to be sent.
-						HalLedBlink(HAL_LED_4, 1, 50, 500);
-						printf("send status success\n");
-					}else{
-						printf("send status failed\n");
-					}
-			}
-			osal_start_reload_timer(GenericApp_TaskID, END_REPORT_CONFIRM_TIMEOUT_EVT, reportConfirmTimeOut);
+		uint8 len;
+		len = sizeof(endStatus_t)+1;
+		packet = osal_mem_alloc(len);
+		*packet = END_REPORT_STATUS_CMD;
+		osal_memcpy(packet+1,&endStatus,len-1);
+		if(packet){
+			GenericApp_DstAddr.addrMode = (afAddrMode_t)Addr16Bit;
+			GenericApp_DstAddr.endPoint = GENERICAPP_ENDPOINT;
+			GenericApp_DstAddr.addr.shortAddr = 0x00;
+			reportPacketID = GenericApp_TransID;
+			if (AF_DataRequest(&GenericApp_DstAddr, &GenericApp_epDesc, 
+					END_STATUS_CLUSTERID, 
+					len, //(byte)osal_strlen( theMessageData ) + 1,
+				(byte *) packet, 
+					&GenericApp_TransID, 
+					AF_DISCV_ROUTE | AF_ACK_REQUEST, AF_DEFAULT_RADIUS) == afStatus_SUCCESS)
+				{
+					// Successfully requested to be sent.
+					HalLedBlink(HAL_LED_4, 1, 50, 500);
+					printf("send status success\n");
+				}else{
+					printf("send status failed\n");
+				}
+		}
+		osal_start_reload_timer(GenericApp_TaskID, END_REPORT_CONFIRM_TIMEOUT_EVT, reportConfirmTimeOut);
 
 	}
 	if(reportStatus == reportConfirm){
@@ -841,6 +844,16 @@ static void EndReportStatus(void){
 	
 	
 }
+
+
+/*   E N D   S Y N C   P A R A M S   P R O C E S S   */
+/*-------------------------------------------------------------------------
+    终端节点发送同步参数请求并同步参数函数，在同步失败之后能重新发送同步请求
+-------------------------------------------------------------------------*/
+static void EndSyncParamsProcess(void){
+	
+}
+
 
 /*   E N D   S Y N C   P A R A M S   */
 /*-------------------------------------------------------------------------
