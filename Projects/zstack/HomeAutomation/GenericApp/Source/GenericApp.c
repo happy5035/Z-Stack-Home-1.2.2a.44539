@@ -628,7 +628,7 @@ static void GenericApp_MessageMSGCB( afIncomingMSGPacket_t *pkt )
 	case END_STATUS_CLUSTERID:
 		CoorProcessEndStatus(pkt);
 		break;
-	case END_SYNC_PARAMS_CLUSTERID:
+	case SYNC_PARAM_CLUSTERID:
 		EndSyncParams(pkt);
 		break;
 	case SYNC_NV_CONFIG_CLUSTERID:
