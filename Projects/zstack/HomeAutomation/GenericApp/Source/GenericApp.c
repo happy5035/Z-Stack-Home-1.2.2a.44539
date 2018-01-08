@@ -498,7 +498,7 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
 			osal_stop_timerEx(GenericApp_TaskID, END_REPORT_CONFIRM_TIMEOUT_EVT);
 		}else{	
 			reportReSendTimes --;
-			if(reportConfirm <=0  && reportConfirmTimeOut < 60000){
+			if(reportConfirm <=0  && reportConfirmTimeOut < 30000){
 				reportConfirmTimeOut =2 * reportConfirmTimeOut;
 				reportReSendTimes = END_REPORT_RE_SEND_TIMES;
 			}
@@ -698,13 +698,13 @@ static void EndStartProcess(){
 	}
 	if(startProcessStatus == startProcessSync){
 		EndSyncParamsProcess(SYNC_PARAMS_STATUS_INIT);
-		startProcessStatus = startProcessStartTimer;
 	}
 	
 	if(startProcessStatus == startProcessStartTimer){
 		
 		//开启采样和发送定时器
 		//EndRequestSyncClock();
+		printf("start timer\n");
 		osal_start_reload_timer(GenericApp_TaskID, SAMPLE_TEMP_EVT, sampleTempTimeDelay);
 	//	osal_start_reload_timer(GenericApp_TaskID, SAMPLE_HUM_EVT, sampleHumTimeDelay);
 		osal_start_reload_timer(GenericApp_TaskID, TEMP_PACKET_SEND_EVT, tempPacketSendTimeDelay);
@@ -891,14 +891,19 @@ static void EndSyncParamsProcess(uint8 status){
 	if(status == SYNC_PARAMS_STATUS_TIMEOUT){
 		//在规定时间内未收到同步参数命令
 		syncParamsTimes -- ;
-		if(syncParamsTimes <= 0 || syncParamsTimeout > 60000){
-			syncParamsTimeout = 2 * syncParamsTimeout;
+		if(syncParamsTimes <= 0 ){
+			if(syncParamsTimeout <= 30000){
+				syncParamsTimeout = 2 * syncParamsTimeout;
+			}else{
+				syncParamsTimeout = 60000;
+			}
 			syncParamsTimes = SYNC_PARAMS_STATUS_TIMES;
 		}
+		
 		osal_start_timerEx(GenericApp_TaskID, END_SYNC_PARAMS_TIEMOUT_EVT, syncParamsTimeout);
 //		syncParamsStatus = SYNC_PARAMS_STATUS_SEND;
 		EndSyncParamsProcess(SYNC_PARAMS_STATUS_SEND);
-		printf("sync params status timeout %d \n",syncParamsTimeout);
+		printf("sync params status timeout %d \n",syncParamsTimeout/1000);
 	}
 	if(status == SYNC_PARAMS_STATUS_RECEIVE){
 		//已经收到同步参数命令
@@ -910,6 +915,9 @@ static void EndSyncParamsProcess(uint8 status){
 	}
 	if(status == SYNC_PARAMS_STATUS_END){
 		printf("sync params end\n");
+		
+		startProcessStatus = startProcessStartTimer;
+		EndStartProcess();
 //		syncParamsStatus = SYNC_PARAMS_STATUS_END;
 	}
 }
