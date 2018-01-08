@@ -69,6 +69,7 @@
 #include "sh20.h"
 #include "tmp275.h"
 #include "OSAL_Nv.h"
+#include "OnBoard.h"
 
 #include "GenericApp.h"
 #include "DebugTrace.h"
@@ -703,6 +704,7 @@ static void EndStartProcess(){
 	}
 	if(startProcessStatus == startProcessSync){
 		EndSyncParamsProcess(SYNC_PARAMS_STATUS_INIT);
+//		startProcessStatus= startProcessStartTimer;
 	}
 	
 	if(startProcessStatus == startProcessStartTimer){
@@ -1014,64 +1016,75 @@ static void EndSyncParams(afIncomingMSGPacket_t* pkt){
 static void EndSyncNVConfig(afIncomingMSGPacket_t *pkt){
 	printf("end sync nv config\n");
 	uint8* data = pkt->cmd.Data;
-	uint8 _paramsVersion = *data++;
-	uint8 item_size = *data++;
-	uint8 i;
-	
-	//构造item
-	uint16 item_id;
-	uint16 item_len;
-	uint8* item_data;
+	uint8 _paramsVersion;
 	uint8 nv_result;
-	uint32 syncResultFlag = 0;
-	for(i=0;i<item_size;i++){
-		item_id = osal_build_uint16(data);
-		data+=2;
-		item_len = osal_build_uint16(data);
-		data+=2;
-		if(item_len <10) {
-			item_data = osal_mem_alloc(item_len);
-			if(item_data){
-				nv_result = osal_nv_read(item_id, 0, item_len, item_data);
-				if(nv_result != NV_OPER_FAILED && !osal_memcmp(item_data, data, item_len) ){
-					nv_result = osal_nv_write(item_id, 0, item_len, data);
-					if(nv_result != NV_OPER_FAILED){
-						syncResultFlag++;
+	
+	nv_result = osal_nv_read(NV_PARAM_VERSION, 0, 1, &_paramsVersion);
+	if(nv_result != NV_OPER_FAILED && *data++ != _paramsVersion){
+		uint8 item_size = *data++;
+		uint8 i;
+		//构造item
+		uint16 item_id;
+		uint16 item_len;
+		uint8* item_data;
+		uint32 syncResultFlag = 0;
+		for(i=0;i<item_size;i++){
+			item_id = osal_build_uint16(data);
+			data+=2;
+			item_len = osal_build_uint16(data);
+			data+=2;
+			if(item_len <10) {
+				item_data = osal_mem_alloc(item_len);
+				if(item_data){
+					nv_result = osal_nv_read(item_id, 0, item_len, item_data);
+					if(nv_result != NV_OPER_FAILED && !osal_memcmp(item_data, data, item_len) ){
+						nv_result = osal_nv_write(item_id, 0, item_len, data);
+						if(nv_result != NV_OPER_FAILED){
+							syncResultFlag++;
+						}
 					}
+	
 				}
-
+				
+				osal_mem_free(item_data);
+	
 			}
-			
-			osal_mem_free(item_data);
+			syncResultFlag<<=1;
+			data+=item_len;
+		}
+		paramsVersion = _paramsVersion;
+		osal_nv_write(NV_PARAM_VERSION, 0, 1, &_paramsVersion);
+		if(syncResultFlag != 0 ){
+			uint8* packet;
+			uint8 packet_len;
+			packet_len = 6; //paramsVersion + item_size + syncResultFlag;
+			packet = osal_mem_alloc(packet_len);
+			if(packet){
+				GenericApp_DstAddr.addrMode = (afAddrMode_t)Addr16Bit;
+				GenericApp_DstAddr.endPoint = GENERICAPP_ENDPOINT;
+				GenericApp_DstAddr.addr.shortAddr = 0x00;
+				if (AF_DataRequest(&GenericApp_DstAddr, &GenericApp_epDesc, 
+									SYNC_NV_CONFIG_RESULT_CLUSTERID, 
+									packet_len, //(byte)osal_strlen( theMessageData ) + 1,
+								(byte *) packet, 
+									&GenericApp_TransID, 
+									AF_DISCV_ROUTE , AF_DEFAULT_RADIUS) == afStatus_SUCCESS)
+				{
+					// Successfully requested to be sent.
+					printf("send nv config result success\n");
+					//重启设备
+					SystemResetSoft();
+				}else{
+					printf("send nv config result failed\n");
+				}
+				osal_mem_free(packet);
+			}
 
 		}
-		syncResultFlag<<1;
-		data+=item_len;
+		
+
 	}
-	paramsVersion = _paramsVersion;
-	osal_nv_write(NV_PARAM_VERSION, 0, 1, &_paramsVersion);
-	uint8* packet;
-	uint8 packet_len;
-	packet_len = 6; //paramsVersion + item_size + syncResultFlag;
-	packet = osal_mem_alloc(packet_len);
-	if(packet){
-		GenericApp_DstAddr.addrMode = (afAddrMode_t)Addr16Bit;
-		GenericApp_DstAddr.endPoint = GENERICAPP_ENDPOINT;
-		GenericApp_DstAddr.addr.shortAddr = 0x00;
-		if (AF_DataRequest(&GenericApp_DstAddr, &GenericApp_epDesc, 
-							SYNC_NV_CONFIG_RESULT_CLUSTERID, 
-							packet_len, //(byte)osal_strlen( theMessageData ) + 1,
-						(byte *) packet, 
-							&GenericApp_TransID, 
-							AF_DISCV_ROUTE , AF_DEFAULT_RADIUS) == afStatus_SUCCESS)
-		{
-			// Successfully requested to be sent.
-			printf("send nv config result success\n");
-		}else{
-			printf("send nv config result failed\n");
-		}
-		osal_mem_free(packet);
-	}
+	
 }
 
 /*   E N D   S E T   C L O C K   */
