@@ -232,10 +232,12 @@ typedef enum{
 	reportSucess
 }reportStatus_e;
 reportStatus_e reportStatus;
-uint32 reportConfirmTimeOut = 5000;
+uint32 reportConfirmTimeOut = END_REPORT_COMFIRM_TIMEOUT;
 uint8 reportReSendTimes = END_REPORT_RE_SEND_TIMES;
 
-uint8 syncParamsStatus;
+//uint8	syncParamsStatus = SYNC_PARAMS_STATUS_INIT;
+uint32	syncParamsTimeout = SYNC_PARAMS_CONFIRM_TIMEOUT;
+uint8	syncParamsTimes = SYNC_PARAMS_STATUS_TIMES;
 
 
 
@@ -268,7 +270,7 @@ static void EndStartProcess(void);
 static void EndReportStatus(void);
 static void EndSyncParams(afIncomingMSGPacket_t *pkt);
 static void EndReadNvParams(void);
-static void EndSyncParamsProcess(void);
+static void EndSyncParamsProcess(uint8 status);
 
 
 /*********************************************************************
@@ -505,6 +507,11 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
 		return events^ END_REPORT_CONFIRM_TIMEOUT_EVT;
 	}
 
+	if(events & END_SYNC_PARAMS_TIEMOUT_EVT){
+		EndSyncParamsProcess(SYNC_PARAMS_STATUS_TIMEOUT);
+		return events ^ END_SYNC_PARAMS_TIEMOUT_EVT;
+	}
+
 	
 //	if(events & SAMPLE_TEMP_READY_EVT){
 ////		EndSampleTask();
@@ -690,7 +697,7 @@ static void EndStartProcess(){
 		EndReportStatus();
 	}
 	if(startProcessStatus == startProcessSync){
-		EndSyncParamsProcess();
+		EndSyncParamsProcess(SYNC_PARAMS_STATUS_INIT);
 		startProcessStatus = startProcessStartTimer;
 	}
 	
@@ -833,6 +840,8 @@ static void EndReportStatus(void){
 	}
 	if(reportStatus == reportConfirm){
 		osal_stop_timerEx(GenericApp_TaskID, END_REPORT_CONFIRM_TIMEOUT_EVT);
+		reportConfirmTimeOut = END_REPORT_COMFIRM_TIMEOUT;
+		reportReSendTimes = END_REPORT_RE_SEND_TIMES;
 		reportStatus = reportSucess;	
 	}
 	if(reportStatus == reportSucess){
@@ -850,8 +859,55 @@ static void EndReportStatus(void){
 /*-------------------------------------------------------------------------
     终端节点发送同步参数请求并同步参数函数，在同步失败之后能重新发送同步请求
 -------------------------------------------------------------------------*/
-static void EndSyncParamsProcess(void){
-	
+static void EndSyncParamsProcess(uint8 status){
+	if(status == SYNC_PARAMS_STATUS_INIT){
+		//初始状态
+		status = SYNC_PARAMS_STATUS_SEND;
+	}
+	if(status == SYNC_PARAMS_STATUS_SEND){
+		//发送参数同步请求
+		GenericApp_DstAddr.addrMode = (afAddrMode_t)Addr16Bit;
+		GenericApp_DstAddr.endPoint = GENERICAPP_ENDPOINT;
+		GenericApp_DstAddr.addr.shortAddr = 0x00;
+		if (AF_DataRequest(&GenericApp_DstAddr, &GenericApp_epDesc, 
+					END_SYNC_PARAMS_CLUSTERID, 
+					1, //(byte)osal_strlen( theMessageData ) + 1,
+				(byte *) &paramsVersion, 
+					&GenericApp_TransID, 
+					AF_DISCV_ROUTE | AF_ACK_REQUEST, AF_DEFAULT_RADIUS) == afStatus_SUCCESS)
+		{
+			// Successfully requested to be sent.
+			printf("send sync params success\n");
+		}else{
+			printf("send sync params failed\n");
+		}
+		//syncParamsStatus = SYNC_PARAMS_STATUS_RECEIVE;
+		osal_start_timerEx(GenericApp_TaskID, END_SYNC_PARAMS_TIEMOUT_EVT, syncParamsTimeout);
+	}
+	if(status == SYNC_PARAMS_STATUS_TIMEOUT){
+		//在规定时间内未收到同步参数命令
+		syncParamsTimes -- ;
+		if(syncParamsTimes <= 0 ){
+			syncParamsTimeout = 2 * syncParamsTimeout;
+			syncParamsTimes = SYNC_PARAMS_STATUS_TIMES;
+		}
+		osal_start_timerEx(GenericApp_TaskID, END_SYNC_PARAMS_TIEMOUT_EVT, syncParamsTimeout);
+//		syncParamsStatus = SYNC_PARAMS_STATUS_SEND;
+		EndSyncParamsProcess(SYNC_PARAMS_STATUS_SEND);
+		printf("sync params status timeout %d \n",syncParamsTimeout);
+	}
+	if(status == SYNC_PARAMS_STATUS_RECEIVE){
+		//已经收到同步参数命令
+		
+		osal_stop_timerEx(GenericApp_TaskID, END_SYNC_PARAMS_TIEMOUT_EVT);
+		syncParamsTimeout = SYNC_PARAMS_CONFIRM_TIMEOUT;
+		syncParamsTimes = SYNC_PARAMS_STATUS_TIMES;
+		status = SYNC_PARAMS_STATUS_END;
+	}
+	if(status == SYNC_PARAMS_STATUS_END){
+		printf("sync params end\n");
+//		syncParamsStatus = SYNC_PARAMS_STATUS_END;
+	}
 }
 
 
@@ -927,6 +983,8 @@ static void EndSyncParams(afIncomingMSGPacket_t* pkt){
 		}
 		
 	}
+//	syncParamsStatus = SYNC_PARAMS_STATUS_RECEIVE;
+	EndSyncParamsProcess(SYNC_PARAMS_STATUS_RECEIVE);
 }
 
 
