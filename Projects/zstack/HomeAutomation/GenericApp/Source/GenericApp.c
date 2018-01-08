@@ -411,6 +411,7 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
 				ReadNvParams();
 				CoorSendCoorStart();
 //				osal_setClock(0x21AAEBCB);  //2017/11/24 16:40:00
+				
 			}
 			if(GenericApp_NwkState == DEV_ROUTER){
 				printf("router start...\n");
@@ -491,6 +492,11 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
 		return events^ END_REPORT_CONFIRM_TIMEOUT_EVT;
 	}
 
+	if(events & COOR_TEST_TIMEOUT_EVT){
+		
+		return events ^ COOR_TEST_TIMEOUT_EVT;
+	}
+	
 	
 //	if(events & SAMPLE_TEMP_READY_EVT){
 ////		EndSampleTask();

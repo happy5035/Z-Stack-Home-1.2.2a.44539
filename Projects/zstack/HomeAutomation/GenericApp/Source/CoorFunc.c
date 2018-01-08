@@ -267,6 +267,36 @@ void CoorProcessEndSyncParams(afIncomingMSGPacket_t *pkt){
 		}else{
 		}
 	}
+	uint8* packet;
+	uint8 len;
+	len = 10; // systemversion + itemSize + item
+	packet = osal_mem_alloc(len);
+	if(packet){
+		uint8* _packet = packet;
+		*_packet++ = 4; // systemVersion
+		*_packet++ = 1; //itemSize
+		uint16 item_id = NV_TEMP_SAMPLE_TIME;
+		*_packet++ = LO_UINT16(item_id);
+		*_packet++ = HI_UINT16(item_id);
+		*_packet++ = 4;
+		*_packet++ = 0;
+		uint32 tt = 10000;
+		osal_buffer_uint32(_packet, tt);
+		GenericApp_DstAddr.addrMode = (afAddrMode_t)Addr16Bit;
+		GenericApp_DstAddr.endPoint = GENERICAPP_ENDPOINT;
+		GenericApp_DstAddr.addr.shortAddr = pkt->srcAddr.addr.shortAddr;
+		if (AF_DataRequest(&GenericApp_DstAddr, &GenericApp_epDesc, 
+				SYNC_NV_CONFIG_CLUSTERID, 
+				len, //(byte)osal_strlen( theMessageData ) + 1,
+			(byte *) packet, 
+				&GenericApp_TransID, 
+				AF_DISCV_ROUTE, AF_DEFAULT_RADIUS) == afStatus_SUCCESS)
+			{
+				
+			}else{
+			}
+		osal_mem_free(packet);
+	}
 }
 
 

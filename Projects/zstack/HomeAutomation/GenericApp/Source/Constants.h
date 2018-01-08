@@ -16,14 +16,14 @@
 #define GENERICAPP_DEVICE_VERSION     0
 #define GENERICAPP_FLAGS              0
 
-#define GENERICAPP_MAX_CLUSTERS       1
-#define GENERICAPP_CLUSTERID          0xf1
-#define SYNC_TIME_CLUSTERID			  0xf2
-#define REQUEST_SYNC_CLOCK_CLUSTERID  0xf3
-#define TEMP_HUM_DATA_CLUSTERID  	  0xf4
-#define SYNC_FREQ_CLUSTERID	  	      0xF5
-#define SYNC_PARAM_CLUSTERID		  0xF6
-#define END_STATUS_CLUSTERID		  0xF7
+#define GENERICAPP_MAX_CLUSTERS       	1
+#define GENERICAPP_CLUSTERID          	0xf1
+#define SYNC_TIME_CLUSTERID			  	0xf2
+#define REQUEST_SYNC_CLOCK_CLUSTERID  	0xf3
+#define TEMP_HUM_DATA_CLUSTERID  	  	0xf4
+#define SYNC_FREQ_CLUSTERID	  	      	0xF5
+#define SYNC_PARAM_CLUSTERID		  	0xF6
+#define END_STATUS_CLUSTERID		  	0xF7
 #define END_SYNC_PARAMS_CLUSTERID	  	0xF8
 #define SYNC_NV_CONFIG_CLUSTERID	  	0xF9
 #define SYNC_NV_CONFIG_RESULT_CLUSTERID	0xFA
@@ -38,14 +38,15 @@
 // Send Message Timeout
 #define GENERICAPP_SEND_MSG_TIMEOUT   5000     // Every 5 seconds
 // Application Events (OSAL) - These are bit weighted definitions.
-#define GENERICAPP_SEND_MSG_EVT       0x0001
-#define UART_RX_CB_EVT                0x0002 	
-#define SAMPLE_TEMP_EVT               0x0004
-#define SAMPLE_HUM_EVT				  0x0008
-#define SAMPLE_TASK_EVT	  	  		  0x0010
-#define TEMP_PACKET_SEND_EVT		  0x0020
-#define REQUEST_SYNC_CLOCK_EVT		  0x0040
-#define END_REPORT_CONFIRM_TIMEOUT_EVT 0x0080
+#define GENERICAPP_SEND_MSG_EVT       	0x0001
+#define UART_RX_CB_EVT                	0x0002 	
+#define SAMPLE_TEMP_EVT               	0x0004
+#define SAMPLE_HUM_EVT				  	0x0008
+#define SAMPLE_TASK_EVT	  	  		  	0x0010
+#define TEMP_PACKET_SEND_EVT		  	0x0020
+#define REQUEST_SYNC_CLOCK_EVT		  	0x0040
+#define END_REPORT_CONFIRM_TIMEOUT_EVT	0x0080
+#define COOR_TEST_TIMEOUT_EVT			0x0100
 
 
 //采集任务
