@@ -155,9 +155,69 @@ uint8 MasterSetFreq(mtSysAppMsg_t *pkt){
 	return retValue;
 }
 
+void CoorSendSyncParams(uint8 paramsVersion,uint16 destAddr){
+	uint32 paramsFlag = 0;
+	uint8* buf = osal_mem_alloc(4);
+	osal_nv_read(NV_PARAM_FLAGS,0,4,buf);
+	paramsFlag = osal_build_uint32(buf, 4);
+	printf("params flags %d",paramsFlag);
+	if(paramsFlag != 0){
+		uint8 *packet;
+		uint8 len;
+		len = 4*5 +1;
+		packet = osal_mem_alloc(len);
+		uint8* _packet = packet;
+		*_packet++ = paramsVersion;
+		_packet = osal_buffer_uint32(_packet, paramsFlag);
+		if(paramsFlag & PARAMS_FLAGS_CLOCK){
+			osal_buffer_uint32(buf, osal_getClock());
+			osal_memcpy(_packet,buf,4);
+			_packet +=4;
+		}else{
+			len -=4;
+		}
+		if(paramsFlag & PARAMS_FLAGS_TEMP_TIME){
+			osal_nv_read(NV_TEMP_SAMPLE_TIME, 0, 4, _packet);
+			_packet+=4;
+		}else{
+			len -=4;
+		}
+		
+		if(paramsFlag & PARAMS_FLAGS_HUM_TIME){
+			osal_nv_read(PARAMS_FLAGS_HUM_TIME, 0, 4, _packet);
+			_packet+=4;
+		}else{
+			len -=4;
+		}
+		
+		if(paramsFlag & PARAMS_FLAGS_SYNC_CLOCK_TIME){
+			osal_nv_read(PARAMS_FLAGS_SYNC_CLOCK_TIME, 0, 4, _packet);
+			_packet+=4;
+		}else{
+			len -=4;
+		}
+		if(len >5){
+			GenericApp_DstAddr.addrMode = (afAddrMode_t)Addr16Bit;
+			GenericApp_DstAddr.endPoint = GENERICAPP_ENDPOINT;
+			GenericApp_DstAddr.addr.shortAddr = destAddr;
+			if (AF_DataRequest(&GenericApp_DstAddr, &GenericApp_epDesc, 
+				SYNC_PARAM_CLUSTERID, 
+				len, 
+				(byte *) packet, 
+				&GenericApp_TransID, 
+				AF_DISCV_ROUTE, AF_DEFAULT_RADIUS) == afStatus_SUCCESS){				
+			}else{
+			}
+
+		}
+		
+		osal_mem_free(packet);
+		osal_mem_free(buf);
+
+	}
+}
+
 void CoorProcessEndStatus(afIncomingMSGPacket_t *pkt){
-	uint32 paramsFlag;
-	paramsFlag = 0;
 	uint8* data = pkt->cmd.Data;
 	*data++;
 	endStatus_t eStatus;
@@ -169,72 +229,44 @@ void CoorProcessEndStatus(afIncomingMSGPacket_t *pkt){
 		printf("same params version %d",_paramsVersion);
 	}else{
 		printf("new params version %d",_paramsVersion);
-		osal_nv_read(NV_PARAM_FLAGS,0,4,buf);
-		paramsFlag = osal_build_uint32(buf, 4);
-		printf("params flags %d",paramsFlag);
-		if(paramsFlag != 0){
-			uint8 *packet;
-			uint8 len;
-			len = 4*5 +1;
-			packet = osal_mem_alloc(len);
-			uint8* _packet = packet;
-			*_packet++ = _paramsVersion;
-			_packet = osal_buffer_uint32(_packet, paramsFlag);
-			if(paramsFlag & PARAMS_FLAGS_CLOCK){
-				osal_buffer_uint32(buf, osal_getClock());
-				osal_memcpy(_packet,buf,4);
-				_packet +=4;
-			}else{
-				len -=4;
-			}
-			if(paramsFlag & PARAMS_FLAGS_TEMP_TIME){
-				osal_nv_read(NV_TEMP_SAMPLE_TIME, 0, 4, _packet);
-				_packet+=4;
-			}else{
-				len -=4;
-			}
-			
-			if(paramsFlag & PARAMS_FLAGS_HUM_TIME){
-				osal_nv_read(PARAMS_FLAGS_HUM_TIME, 0, 4, _packet);
-				_packet+=4;
-			}else{
-				len -=4;
-			}
-			
-			if(paramsFlag & PARAMS_FLAGS_SYNC_CLOCK_TIME){
-				osal_nv_read(PARAMS_FLAGS_SYNC_CLOCK_TIME, 0, 4, _packet);
-				_packet+=4;
-			}else{
-				len -=4;
-			}
-			if(len >5){
-				GenericApp_DstAddr.addrMode = (afAddrMode_t)Addr16Bit;
-				GenericApp_DstAddr.endPoint = GENERICAPP_ENDPOINT;
-				GenericApp_DstAddr.addr.shortAddr = pkt->srcAddr.addr.shortAddr;
-				if (AF_DataRequest(&GenericApp_DstAddr, &GenericApp_epDesc, 
-					SYNC_PARAM_CLUSTERID, 
-					len, 
-					(byte *) packet, 
-					&GenericApp_TransID, 
-					AF_DISCV_ROUTE, AF_DEFAULT_RADIUS) == afStatus_SUCCESS){				
-				}else{
-				}
-
-			}
-			
-			osal_mem_free(packet);
-
-		}
-		
-		
+		CoorSendSyncParams(_paramsVersion,pkt->srcAddr.addr.shortAddr);
 	}
-
 	osal_mem_free(buf);
-	
 	
 #ifdef MT_TASK
 	MT_BuildAndSendZToolResponse(MT_RSP_CMD_APP, MT_APP_MSG, pkt->cmd.DataLength, pkt->cmd.Data);
 #endif
+}
+
+/*   C O O R   P R O C E S S   E N D   S Y N C   P A R A M S   */
+/*-------------------------------------------------------------------------
+    处理终端节点发送的同步参数请求
+-------------------------------------------------------------------------*/
+void CoorProcessEndSyncParams(afIncomingMSGPacket_t *pkt){
+	uint8 flag= 0;
+	uint8 _paramsVersion ;
+	if(pkt->cmd.DataLength == 1){
+		if(osal_nv_read(NV_PARAM_VERSION, 0, 1, &_paramsVersion) != NV_OPER_FAILED){
+			if(_paramsVersion != *pkt->cmd.Data){
+				CoorSendSyncParams(_paramsVersion,pkt->srcAddr.addr.shortAddr);
+				flag = 1;
+			}
+		}
+		
+	}
+	if(flag == 0){
+		GenericApp_DstAddr.addrMode = (afAddrMode_t)Addr16Bit;
+		GenericApp_DstAddr.endPoint = GENERICAPP_ENDPOINT;
+		GenericApp_DstAddr.addr.shortAddr = pkt->srcAddr.addr.shortAddr;
+		if (AF_DataRequest(&GenericApp_DstAddr, &GenericApp_epDesc, 
+			SYNC_PARAM_CLUSTERID, 
+			1, 
+			(byte *) &_paramsVersion, 
+			&GenericApp_TransID, 
+			AF_DISCV_ROUTE, AF_DEFAULT_RADIUS) == afStatus_SUCCESS){				
+		}else{
+		}
+	}
 }
 
 
