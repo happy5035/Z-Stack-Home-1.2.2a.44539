@@ -729,84 +729,86 @@ static void EndStartProcess(){
 -------------------------------------------------------------------------*/
 static void EndReportStatus(void){
 	if(reportStatus == reportInit){
+		reportConfirmTimeOut = END_REPORT_COMFIRM_TIMEOUT;
+		reportReSendTimes = END_REPORT_RE_SEND_TIMES;
 		endStatus.netAddr = NLME_GetShortAddr();
-			osal_memcpy(endStatus.extAddr,extAddr,Z_EXTADDR_LEN);
-			endStatus.vdd = EndReadVcc();
-			endStatus.clock = osal_getClock();
-			endStatus.paramsVersion = paramsVersion;
-			uint8* buf ;
-			buf = osal_mem_alloc(4);
-			uint8 result;
-			//读取温度采样频率
-			result = osal_nv_read(NV_TEMP_SAMPLE_TIME, 0, 4, buf);
-			if(result == NV_OPER_FAILED){
-				osal_buffer_uint32(buf, sampleTempTimeDelay);
-				result = osal_nv_item_init(NV_TEMP_SAMPLE_TIME, 4, buf);
-				endStatus.tempTime = sampleTempTimeDelay;
-				if(result !=NV_OPER_FAILED ){
-					printf("init nv temp time success");
-				}
-					
-				else{
-					printf("init nv temp time failed");
-				}
-			}else{
-				endStatus.tempTime =  osal_build_uint32(buf, 4);
+		osal_memcpy(endStatus.extAddr,extAddr,Z_EXTADDR_LEN);
+		endStatus.vdd = EndReadVcc();
+		endStatus.clock = osal_getClock();
+		endStatus.paramsVersion = paramsVersion;
+		uint8* buf ;
+		buf = osal_mem_alloc(4);
+		uint8 result;
+		//读取温度采样频率
+		result = osal_nv_read(NV_TEMP_SAMPLE_TIME, 0, 4, buf);
+		if(result == NV_OPER_FAILED){
+			osal_buffer_uint32(buf, sampleTempTimeDelay);
+			result = osal_nv_item_init(NV_TEMP_SAMPLE_TIME, 4, buf);
+			endStatus.tempTime = sampleTempTimeDelay;
+			if(result !=NV_OPER_FAILED ){
+				printf("init nv temp time success");
 			}
-			//读取湿度采样频率
-			result = osal_nv_read(NV_HUM_SAMPLE_TIME, 0, 4, buf);
-			if(result == NV_OPER_FAILED){
-				osal_buffer_uint32(buf, sampleHumTimeDelay);
-				result = osal_nv_item_init(NV_HUM_SAMPLE_TIME, 4, buf);
-				endStatus.humTime = sampleHumTimeDelay;
-				if(result !=NV_OPER_FAILED ){
-					printf("init nv hum time success");
-				}
-					
-				else{
-					printf("init nv hum time failed");
-				}
-			}else{
-				endStatus.humTime =  osal_build_uint32(buf, 4);
+				
+			else{
+				printf("init nv temp time failed");
 			}
-			
-			//读取数据包发送频率
-			result = osal_nv_read(NV_PACKET_SEND_TIME, 0, 4, buf);
-			if(result == NV_OPER_FAILED){
-				osal_buffer_uint32(buf, tempPacketSendTimeDelay);
-				result = osal_nv_item_init(NV_PACKET_SEND_TIME, 4, buf);
-				endStatus.packetTime = tempPacketSendTimeDelay;
-				printf("init nv sample time");
-				if(result !=NV_OPER_FAILED ){
-					printf("init nv packet time success");
-				}
-					
-				else{
-					printf("init nv packet time failed");
-				}
-			}else{
-				endStatus.packetTime =	osal_build_uint32(buf, 4);
+		}else{
+			endStatus.tempTime =  osal_build_uint32(buf, 4);
+		}
+		//读取湿度采样频率
+		result = osal_nv_read(NV_HUM_SAMPLE_TIME, 0, 4, buf);
+		if(result == NV_OPER_FAILED){
+			osal_buffer_uint32(buf, sampleHumTimeDelay);
+			result = osal_nv_item_init(NV_HUM_SAMPLE_TIME, 4, buf);
+			endStatus.humTime = sampleHumTimeDelay;
+			if(result !=NV_OPER_FAILED ){
+				printf("init nv hum time success");
 			}
-			
-			//读取同步时钟发送频率
-			result = osal_nv_read(NV_SYNC_CLOCK_TIME, 0, 4, buf);
-			if(result == NV_OPER_FAILED){
-				osal_buffer_uint32(buf, requestSyncClockDelay);
-				result = osal_nv_item_init(NV_SYNC_CLOCK_TIME, 4, buf);
-				endStatus.syncClockTime = requestSyncClockDelay;
-				printf("init nv sample time");
-				if(result !=NV_OPER_FAILED ){
-					printf("init nv packet time success");
-				}
-					
-				else{
-					printf("init nv packet time failed");
-				}
-			}else{
-				endStatus.syncClockTime =  osal_build_uint32(buf, 4);
+				
+			else{
+				printf("init nv hum time failed");
 			}
-			reportStatus = reportSend;
-			osal_mem_free(buf);
+		}else{
+			endStatus.humTime =  osal_build_uint32(buf, 4);
+		}
+		
+		//读取数据包发送频率
+		result = osal_nv_read(NV_PACKET_SEND_TIME, 0, 4, buf);
+		if(result == NV_OPER_FAILED){
+			osal_buffer_uint32(buf, tempPacketSendTimeDelay);
+			result = osal_nv_item_init(NV_PACKET_SEND_TIME, 4, buf);
+			endStatus.packetTime = tempPacketSendTimeDelay;
+			printf("init nv sample time");
+			if(result !=NV_OPER_FAILED ){
+				printf("init nv packet time success");
+			}
+				
+			else{
+				printf("init nv packet time failed");
+			}
+		}else{
+			endStatus.packetTime =	osal_build_uint32(buf, 4);
+		}
+		
+		//读取同步时钟发送频率
+		result = osal_nv_read(NV_SYNC_CLOCK_TIME, 0, 4, buf);
+		if(result == NV_OPER_FAILED){
+			osal_buffer_uint32(buf, requestSyncClockDelay);
+			result = osal_nv_item_init(NV_SYNC_CLOCK_TIME, 4, buf);
+			endStatus.syncClockTime = requestSyncClockDelay;
+			printf("init nv sample time");
+			if(result !=NV_OPER_FAILED ){
+				printf("init nv packet time success");
+			}
+				
+			else{
+				printf("init nv packet time failed");
+			}
+		}else{
+			endStatus.syncClockTime =  osal_build_uint32(buf, 4);
+		}
+		reportStatus = reportSend;
+		osal_mem_free(buf);
 
 	}
 	if( reportStatus == reportSend){
@@ -862,6 +864,8 @@ static void EndReportStatus(void){
 static void EndSyncParamsProcess(uint8 status){
 	if(status == SYNC_PARAMS_STATUS_INIT){
 		//初始状态
+		syncParamsTimeout = SYNC_PARAMS_CONFIRM_TIMEOUT;
+		syncParamsTimes = SYNC_PARAMS_STATUS_TIMES;
 		status = SYNC_PARAMS_STATUS_SEND;
 	}
 	if(status == SYNC_PARAMS_STATUS_SEND){
@@ -874,7 +878,7 @@ static void EndSyncParamsProcess(uint8 status){
 					1, //(byte)osal_strlen( theMessageData ) + 1,
 				(byte *) &paramsVersion, 
 					&GenericApp_TransID, 
-					AF_DISCV_ROUTE | AF_ACK_REQUEST, AF_DEFAULT_RADIUS) == afStatus_SUCCESS)
+					AF_DISCV_ROUTE , AF_DEFAULT_RADIUS) == afStatus_SUCCESS)
 		{
 			// Successfully requested to be sent.
 			printf("send sync params success\n");
@@ -887,7 +891,7 @@ static void EndSyncParamsProcess(uint8 status){
 	if(status == SYNC_PARAMS_STATUS_TIMEOUT){
 		//在规定时间内未收到同步参数命令
 		syncParamsTimes -- ;
-		if(syncParamsTimes <= 0 ){
+		if(syncParamsTimes <= 0 || syncParamsTimeout > 60000){
 			syncParamsTimeout = 2 * syncParamsTimeout;
 			syncParamsTimes = SYNC_PARAMS_STATUS_TIMES;
 		}
