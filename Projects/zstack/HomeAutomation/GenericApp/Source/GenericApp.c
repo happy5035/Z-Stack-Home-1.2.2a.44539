@@ -437,6 +437,7 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
 			}
 			if(GenericApp_NwkState == DEV_END_DEVICE){
 				startProcessStatus = startProcessInit;
+				
 				EndStartProcess();
 				
 			}
@@ -513,6 +514,10 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
 	if(events & END_SYNC_PARAMS_TIEMOUT_EVT){
 		EndSyncParamsProcess(SYNC_PARAMS_STATUS_TIMEOUT);
 		return events ^ END_SYNC_PARAMS_TIEMOUT_EVT;
+	}
+	if(events & END_RESET_TIEMOUT_EVT){
+		SystemResetSoft();
+		return events ^ END_RESET_TIEMOUT_EVT;
 	}
 
 	
@@ -966,7 +971,8 @@ static void EndSyncParams(afIncomingMSGPacket_t* pkt){
 			if(paramsFlags & PARAMS_FLAGS_HUM_TIME){
 				uint32 _sampleHumTimeDelay = osal_build_uint32(data, 4);
 				if(_sampleHumTimeDelay != sampleHumTimeDelay){
-					sampleHumTimeDelay = _sampleHumTimeDelay;
+					sampleHumTimeDelay = _sampleHumTimeDelay;
+
 //					osal_start_reload_timer(GenericApp_TaskID, SAMPLE_HUM_EVT, sampleHumTimeDelay);
 					osal_buffer_uint32( buf, sampleHumTimeDelay);
 					osal_nv_write(PARAMS_FLAGS_HUM_TIME, 0, 4,  buf);
@@ -1018,10 +1024,11 @@ static void EndSyncNVConfig(afIncomingMSGPacket_t *pkt){
 	uint8* data = pkt->cmd.Data;
 	uint8 _paramsVersion;
 	uint8 nv_result;
-	
+	uint8 pv = *data++;
+	uint8 item_size = *data++;
 	nv_result = osal_nv_read(NV_PARAM_VERSION, 0, 1, &_paramsVersion);
-	if(nv_result != NV_OPER_FAILED && *data++ != _paramsVersion){
-		uint8 item_size = *data++;
+	if(nv_result != NV_OPER_FAILED && pv != _paramsVersion){
+		_paramsVersion = pv;
 		uint8 i;
 		//构造item
 		uint16 item_id;
@@ -1043,10 +1050,11 @@ static void EndSyncNVConfig(afIncomingMSGPacket_t *pkt){
 							syncResultFlag++;
 						}
 					}
+				osal_mem_free(item_data);
 	
 				}
 				
-				osal_mem_free(item_data);
+				
 	
 			}
 			syncResultFlag<<=1;
@@ -1060,6 +1068,10 @@ static void EndSyncNVConfig(afIncomingMSGPacket_t *pkt){
 			packet_len = 6; //paramsVersion + item_size + syncResultFlag;
 			packet = osal_mem_alloc(packet_len);
 			if(packet){
+				uint8* _packet = packet;
+				*_packet++ = paramsVersion;
+				*_packet++ = item_size;
+				osal_buffer_uint32(_packet, syncResultFlag);
 				GenericApp_DstAddr.addrMode = (afAddrMode_t)Addr16Bit;
 				GenericApp_DstAddr.endPoint = GENERICAPP_ENDPOINT;
 				GenericApp_DstAddr.addr.shortAddr = 0x00;
@@ -1073,7 +1085,9 @@ static void EndSyncNVConfig(afIncomingMSGPacket_t *pkt){
 					// Successfully requested to be sent.
 					printf("send nv config result success\n");
 					//重启设备
-					SystemResetSoft();
+//					SystemResetSoft();
+					//5s后重启
+					osal_start_timerEx(GenericApp_TaskID, END_RESET_TIEMOUT_EVT, 5000);
 				}else{
 					printf("send nv config result failed\n");
 				}
