@@ -177,10 +177,10 @@ typedef struct
 	uint16 	vdd;
 	uint8   paramsVersion;
 	UTCTime tempStartTime;
-	uint16	sampleFreq;
+	uint32	sampleFreq;
 	uint8 	tempNumbers;
 	UTCTime humStartTime;
-	uint16	humFreq;
+	uint32	humFreq;
 	uint8 	humNumbers;
 }tempPacket_t;
 //´æ´¢ÎÂ¶ÈÊı¾İ
