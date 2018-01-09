@@ -516,7 +516,7 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
 		return events ^ END_SYNC_PARAMS_TIEMOUT_EVT;
 	}
 	if(events & END_RESET_TIEMOUT_EVT){
-		SystemResetSoft();
+		SystemReset();
 		return events ^ END_RESET_TIEMOUT_EVT;
 	}
 
@@ -1062,7 +1062,7 @@ static void EndSyncNVConfig(afIncomingMSGPacket_t *pkt){
 		}
 		paramsVersion = _paramsVersion;
 		osal_nv_write(NV_PARAM_VERSION, 0, 1, &_paramsVersion);
-		if(syncResultFlag != 0 ){
+		if(syncResultFlag != 0  ){
 			uint8* packet;
 			uint8 packet_len;
 			packet_len = 6; //paramsVersion + item_size + syncResultFlag;
@@ -1093,7 +1093,7 @@ static void EndSyncNVConfig(afIncomingMSGPacket_t *pkt){
 				}
 				osal_mem_free(packet);
 			}
-
+		
 		}
 		
 
