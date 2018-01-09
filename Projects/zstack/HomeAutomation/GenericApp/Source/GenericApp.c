@@ -154,18 +154,18 @@ byte GenericApp_TransID;  // This is the unique message ID (counter)
 afAddrType_t GenericApp_DstAddr;
 afAddrType_t GenericApp_BroadcastAddr;
 
-uint32  sampleTempTimeDelay = 5000;				//1s
-uint32 tempPacketSendTimeDelay = 60000;			//30s
+uint32  sampleTempTimeDelay = SAMPLE_TEMP_TIME_DELAY_DEFAULT;				//1s
+uint32 tempPacketSendTimeDelay = TEMP_PACKET_SEND_TIME_DELAY_DEFAULT;			//30s
 uint8 tempPacketSendRetrayTimes = 0;			//温度数据包重复发送次数
 uint8 tempPacketSendPacketTransID;
 uint32 syncTimeDealy = (uint32)1000*60;
 uint16 tempPacketTimeWindow = 1;
 
-uint32 sampleHumTimeDelay = 10000;// 60s一次采集湿度数据
+uint32 sampleHumTimeDelay = SAMPLE_HUM_TIME_DELAY_DEFAULT;// 60s一次采集湿度数据
 
 uint8 sampleTask = 0x00;
 
-uint32 requestSyncClockDelay = 600000; //10分钟同步一次时间
+uint32 requestSyncClockDelay = REQUEST_SYNC_CLOCK_DELAY_DEFAULT; //10分钟同步一次时间
 
 uint8 paramsVersion = 0;
 
@@ -516,7 +516,7 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
 		return events ^ END_SYNC_PARAMS_TIEMOUT_EVT;
 	}
 	if(events & END_RESET_TIEMOUT_EVT){
-		SystemReset();
+		SystemResetSoft();
 		return events ^ END_RESET_TIEMOUT_EVT;
 	}
 
@@ -717,11 +717,12 @@ static void EndStartProcess(){
 		//开启采样和发送定时器
 		//EndRequestSyncClock();
 		printf("start timer\n");
-		osal_start_reload_timer(GenericApp_TaskID, SAMPLE_TEMP_EVT, sampleTempTimeDelay);
+		EndReadNvParams();
+		osal_start_timerEx(GenericApp_TaskID, SAMPLE_TEMP_EVT, sampleTempTimeDelay);
 	//	osal_start_reload_timer(GenericApp_TaskID, SAMPLE_HUM_EVT, sampleHumTimeDelay);
-		osal_start_reload_timer(GenericApp_TaskID, TEMP_PACKET_SEND_EVT, tempPacketSendTimeDelay);
+		osal_start_timerEx(GenericApp_TaskID, TEMP_PACKET_SEND_EVT, tempPacketSendTimeDelay);
 		EndTempSampleCfg();
-		osal_start_reload_timer(GenericApp_TaskID, REQUEST_SYNC_CLOCK_EVT, requestSyncClockDelay);
+		osal_start_timerEx(GenericApp_TaskID, REQUEST_SYNC_CLOCK_EVT, requestSyncClockDelay);
 		osal_pwrmgr_device(PWRMGR_BATTERY);
 		startProcessStatus = startProcessOver;
 	}
@@ -1188,6 +1189,12 @@ static void EndRequestSyncClock(){
     }else{
 		printf("build sync clock packet failed\n");
 	}
+
+	uint8 res = osal_nv_read(NV_SYNC_CLOCK_TIME, 0, 4, &requestSyncClockDelay);
+	if(res == NV_OPER_FAILED){
+		requestSyncClockDelay = REQUEST_SYNC_CLOCK_DELAY_DEFAULT;
+	}
+	osal_start_timerEx(GenericApp_TaskID, REQUEST_SYNC_CLOCK_EVT, requestSyncClockDelay);
 }
 
 /*   E N D S A M P L E   T A S K   */
@@ -1245,6 +1252,10 @@ static void EndSampleTempHandler(void){
 		printf("temp queue full");
 //		osal_stop_timerEx(uint8 task_id, uint16 event_id)
 	}
+	res = osal_nv_read(NV_TEMP_SAMPLE_TIME, 0, 4, &sampleHumTimeDelay);
+	if(res == NV_OPER_FAILED){
+		sampleHumTimeDelay = SAMPLE_HUM_TIME_DELAY_DEFAULT;
+	}
 	osal_start_timerEx(GenericApp_TaskID, SAMPLE_TEMP_EVT, sampleTempTimeDelay);
 	
 }
@@ -1266,6 +1277,7 @@ static void EndSampleHumHandler(void){
 		printf("hum queue full");
 //		osal_stop_timerEx(uint8 task_id, uint16 event_id)
 	}
+	
 }
 
 static void EndTempPacketSendHandler(void){
@@ -1298,6 +1310,11 @@ static void EndTempPacketSendHandler(void){
     }else{
 		printf("build packet failed\n");
 	}
+	uint8 res = osal_nv_read(NV_PACKET_SEND_TIME, 0, 4, &tempPacketSendTimeDelay);
+	if(res == NV_OPER_FAILED){
+		tempPacketSendTimeDelay = TEMP_PACKET_SEND_TIME_DELAY_DEFAULT;
+	}
+	osal_start_timerEx(GenericApp_TaskID, TEMP_PACKET_SEND_EVT, tempPacketSendTimeDelay);
 }
 
 /**
@@ -1335,7 +1352,11 @@ static int16 EndReadTemp(){
 	}else{
 //		printf("start measure failed\n"); 
 	}
-
+	res = osal_nv_read(NV_TEMP_SAMPLE_TIME, 0, 4, &sampleTempTimeDelay);
+	if(res == NV_OPER_FAILED){
+		sampleTempTimeDelay = SAMPLE_TEMP_TIME_DELAY_DEFAULT;
+	}
+	osal_start_timerEx(GenericApp_TaskID, SAMPLE_TEMP_EVT, sampleTempTimeDelay);
 	return res;
 
 }
