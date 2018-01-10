@@ -190,7 +190,9 @@ uint8 MasterSetNvConfig(mtSysAppMsg_t *pkt){
 			uint8* items = osal_mem_alloc(nvConfigItems.item_len);
 			if(items){
 				osal_mem_free(nvConfigItems.items);
+				osal_memcpy(items, pkt->appData, nvConfigItems.item_len);
 				nvConfigItems.items = items;
+				osal_nv_write(NV_PARAM_VERSION, 0, 1, &nvConfigItems.pv);
 				retValue = SUCCESS;
 			}
 		}
