@@ -15,4 +15,5 @@ void CoorProcessMtSysMsg(mtSysAppMsg_t *pkt);
 void CoorProcessEndStatus(afIncomingMSGPacket_t *pkt);
 void CoorProcessEndSyncParams(afIncomingMSGPacket_t *pkt);
 void CoorSendSyncParams(uint8 paramsVersion,uint16 destAddr);
+void CoorSendNVConfig(afIncomingMSGPacket_t *pkt);
 #endif

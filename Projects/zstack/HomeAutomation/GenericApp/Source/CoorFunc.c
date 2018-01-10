@@ -17,51 +17,24 @@ extern afAddrType_t GenericApp_DstAddr;
 //	Local Function
 uint8 MasterSetClock(mtSysAppMsg_t *pkt); 
 uint8 MasterSetFreq(mtSysAppMsg_t *pkt);
+uint8 MasterSetNvConfig(mtSysAppMsg_t *pkt);
 
+// Local variable
+typedef struct {
+	uint8 pv;
+	uint8 item_size;
+	uint8 item_len;
+	uint8* items;
+}nvConfigItems_t;
+
+nvConfigItems_t nvConfigItems;
 
 /*   C O O R   P R O C E S S   T E M P   H U M   D A T A   */
 /*-------------------------------------------------------------------------
     协调器处理终端发送的温度湿度数据包
 -------------------------------------------------------------------------*/
 void CoorProcessTempHumData(afIncomingMSGPacket_t *pkt){
-	uint8 pv;
-	pv = *(pkt->cmd.Data + 13);
-	uint8 _pv;
-	osal_nv_read(NV_PARAM_VERSION, 0, 1, &_pv);
-	if(pv!=_pv){
-		uint8* packet;
-		uint8 len;
-		len = 10; // systemversion + itemSize + item
-		packet = osal_mem_alloc(len);
-		if(packet){
-			uint8* _packet = packet;
-//			*_packet++ = 4; // systemVersion
-			osal_nv_read(NV_PARAM_VERSION, 0, 1, _packet);
-			_packet++;
-			*_packet++ = 1; //itemSize
-			uint16 item_id = NV_TEMP_SAMPLE_TIME;
-			*_packet++ = LO_UINT16(item_id);
-			*_packet++ = HI_UINT16(item_id);
-			*_packet++ = 4;
-			*_packet++ = 0;
-			osal_nv_read(NV_TEMP_SAMPLE_TIME, 0, 4, _packet);
-			GenericApp_DstAddr.addrMode = (afAddrMode_t)Addr16Bit;
-			GenericApp_DstAddr.endPoint = GENERICAPP_ENDPOINT;
-			GenericApp_DstAddr.addr.shortAddr = pkt->srcAddr.addr.shortAddr;
-			if (AF_DataRequest(&GenericApp_DstAddr, &GenericApp_epDesc, 
-					SYNC_NV_CONFIG_CLUSTERID, 
-					len, //(byte)osal_strlen( theMessageData ) + 1,
-				(byte *) packet, 
-					&GenericApp_TransID, 
-					AF_DISCV_ROUTE, AF_DEFAULT_RADIUS) == afStatus_SUCCESS)
-				{
-					
-				}else{
-				}
-			osal_mem_free(packet);
-		}
-
-	}
+	CoorSendNVConfig( pkt);
 	
 
 #ifdef MT_TASK
@@ -98,6 +71,8 @@ void CoorProcessMtSysMsg(mtSysAppMsg_t *pkt){
 		case MASTER_SET_FREQ_CMD:
 			retValue = MasterSetFreq(pkt);
 			break;
+		case MASTER_SET_NV_CONFIG_CMD:
+			retValue = MasterSetNvConfig(pkt);
 		default:
 			break;
 	}
@@ -194,6 +169,36 @@ uint8 MasterSetFreq(mtSysAppMsg_t *pkt){
 //	printf("alloc send sync freq  packet failed\n");
 	return retValue;
 }
+
+
+/*   M A S T E R   S E T   N V   C O N F I G   */
+/*-------------------------------------------------------------------------
+    设置所有终端NV配置参数
+    |  0    |   1   |  2    |  3-len  |
+    |  pv   |  size |  len  |  items  |
+-------------------------------------------------------------------------*/
+uint8 MasterSetNvConfig(mtSysAppMsg_t *pkt){
+	uint8 len;
+	uint8 retValue;
+	retValue = FAILURE;
+	len = pkt->appDataLen;
+	if(len >=3){
+		nvConfigItems.pv = *pkt->appData ++;	
+		nvConfigItems.item_size = *pkt->appData ++;	
+		nvConfigItems.item_len = *pkt->appData ++;	
+		if(nvConfigItems.item_len>0){
+			uint8* items = osal_mem_alloc(nvConfigItems.item_len);
+			if(items){
+				osal_mem_free(nvConfigItems.items);
+				nvConfigItems.items = items;
+				retValue = SUCCESS;
+			}
+		}
+	}
+	return retValue;
+
+}
+
 
 void CoorSendSyncParams(uint8 paramsVersion,uint16 destAddr){
 	uint32 paramsFlag = 0;
@@ -310,4 +315,44 @@ void CoorProcessEndSyncParams(afIncomingMSGPacket_t *pkt){
 	
 }
 
+
+/*   C O O R   S E N D   N   V   C O N F I G   */
+/*-------------------------------------------------------------------------
+    发送配置NV命令给终端
+-------------------------------------------------------------------------*/
+void CoorSendNVConfig(afIncomingMSGPacket_t *pkt){
+	uint8 pv;
+	pv = *(pkt->cmd.Data + 13);
+	uint8 _pv;
+	osal_nv_read(NV_PARAM_VERSION, 0, 1, &_pv);
+	if(pv!=_pv){
+		
+		uint8* packet;
+		uint8 len;
+		len = nvConfigItems.item_len + 2; // pv + itemSize  + item
+		packet = osal_mem_alloc(len);
+		if(packet){
+			uint8* _packet = packet;
+			*_packet++ = _pv;
+			*_packet++ = nvConfigItems.item_size; //itemSize
+//			*_packet++ = nvConfigItems.item_len; //item_len
+			osal_memcpy(_packet, nvConfigItems.items, nvConfigItems.item_len);
+			GenericApp_DstAddr.addrMode = (afAddrMode_t)Addr16Bit;
+			GenericApp_DstAddr.endPoint = GENERICAPP_ENDPOINT;
+			GenericApp_DstAddr.addr.shortAddr = pkt->srcAddr.addr.shortAddr;
+			if (AF_DataRequest(&GenericApp_DstAddr, &GenericApp_epDesc, 
+					SYNC_NV_CONFIG_CLUSTERID, 
+					len, //(byte)osal_strlen( theMessageData ) + 1,
+				(byte *) packet, 
+					&GenericApp_TransID, 
+					AF_DISCV_ROUTE, AF_DEFAULT_RADIUS) == afStatus_SUCCESS)
+				{
+					
+				}else{
+				}
+			osal_mem_free(packet);
+		}
+
+	}
+}
 

@@ -65,6 +65,7 @@
 #define MASTER_SET_CLOCK_CMD		  0xF4 
 #define MASTER_SET_FREQ_CMD	          0xF5
 #define END_REPORT_STATUS_CMD		  0xF6
+#define MASTER_SET_NV_CONFIG_CMD	  0xF7
 
 //uart constans
 // ÃüÁî¸ñÊ½Îª
