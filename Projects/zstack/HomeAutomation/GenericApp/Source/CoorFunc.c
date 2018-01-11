@@ -45,7 +45,7 @@ void CoorProcessTempHumData(afIncomingMSGPacket_t *pkt){
 		osal_memcpy(packet,pkt->cmd.Data,pkt->cmd.DataLength);
 		*(packet + len - 2) = pkt->rssi;
 		*(packet + len - 1) = pkt->LinkQuality;
-		MT_BuildAndSendZToolResponse(MT_RSP_CMD_APP, MT_APP_MSG, len, packet);
+//		MT_BuildAndSendZToolResponse(MT_RSP_CMD_APP, MT_APP_MSG, len, packet);
 	}
 	
 #endif
@@ -290,7 +290,7 @@ void CoorProcessEndStatus(afIncomingMSGPacket_t *pkt){
 	osal_mem_free(buf);
 	
 #ifdef MT_TASK
-	MT_BuildAndSendZToolResponse(MT_RSP_CMD_APP, MT_APP_MSG, pkt->cmd.DataLength, pkt->cmd.Data);
+//	MT_BuildAndSendZToolResponse(MT_RSP_CMD_APP, MT_APP_MSG, pkt->cmd.DataLength, pkt->cmd.Data);
 #endif
 }
 
