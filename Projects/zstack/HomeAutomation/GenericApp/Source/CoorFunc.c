@@ -366,4 +366,44 @@ void CoorSendNVConfig(afIncomingMSGPacket_t *pkt){
 
 	}
 }
+/*   C O O R   M   T   U A R T   S E R I A L   M S G   P R O C E S S   */
+/*-------------------------------------------------------------------------
+    处理上位机远程MT数据包
+-------------------------------------------------------------------------*/
+void CoorMTUartSerialMsgProcess(mtOSALSerialData_t *pBuf){
+	uint8* packet = pBuf->msg;
+	uint8 len = pBuf->msg[0] + 3 ;
+	uint16 destAddr;
+	uint8 result = osal_nv_read(NV_REMOTE_URART_DEST_ADDR, 0, 2, &destAddr);
+	if(result != NV_OPER_FAILED){
+		GenericApp_DstAddr.addrMode = (afAddrMode_t)AddrBroadcast;
+		GenericApp_DstAddr.endPoint = GENERICAPP_ENDPOINT;
+		GenericApp_DstAddr.addr.shortAddr = 0xFFFF;
+		if (AF_DataRequest(&GenericApp_DstAddr, &GenericApp_epDesc, 
+					REMOTE_MT_UART_DATA_CLUSTERID, 
+			len, //(byte)osal_strlen( theMessageData ) + 1,
+			(byte *) packet, 
+				&GenericApp_TransID, 
+				AF_DISCV_ROUTE, AF_DEFAULT_RADIUS) == afStatus_SUCCESS)
+			{
+				
+			}else{
+				
+			}
+	}
+}
+
+/*   C O O R   P R O C E S S   U A R T   R E S P O N S E   */
+/*-------------------------------------------------------------------------
+    处理终端返回的远程MT响应
+-------------------------------------------------------------------------*/
+void CoorProcessUartResponse(afIncomingMSGPacket_t *pkt){
+#ifdef ZTOOL_P2
+  HalUARTWrite(HAL_UART_PORT_1,pkt->cmd.Data,pkt->cmd.DataLength);
+#else
+  HalUARTWrite(HAL_UART_PORT_0,pkt->cmd.Data,pkt->cmd.DataLength);
+#endif
+}
+
+
 

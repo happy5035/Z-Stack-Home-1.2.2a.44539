@@ -330,6 +330,8 @@ void GenericApp_Init( uint8 task_id )
 
 //	ZDO_RegisterForZDOMsg(GenericApp_TaskID, Device_annce);
 //    EndTempSampleCfg();
+
+	MT_UartRegistGenericAppTaskId(GenericApp_TaskID);
 }
 
 /*********************************************************************
@@ -427,6 +429,9 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
           break;
 		case MT_SYS_APP_MSG:
 			CoorProcessMtSysMsg((mtSysAppMsg_t *)MSGpkt);
+			break;
+		case CMD_SERIAL_MSG:
+			CoorMTUartSerialMsgProcess((mtOSALSerialData_t *)MSGpkt);
 			break;
         default:
           break;
@@ -617,6 +622,9 @@ static void GenericApp_MessageMSGCB( afIncomingMSGPacket_t *pkt )
 	case END_SYNC_PARAMS_CLUSTERID:
 		CoorProcessEndSyncParams(pkt);
 		break;
+	case REMOTE_MT_UART_RESPONSE_CLUSTERID:
+		CoorProcessUartResponse(pkt);
+		break;
 	default :
 		break;
   }
@@ -674,6 +682,12 @@ static void ReadNvParams(){
 		osal_nv_item_init(NV_SYNC_CLOCK_TIME, 4, buf);
 	}else{
 		requestSyncClockDelay = osal_build_uint32(buf, 4);
+	}
+
+	result = osal_nv_read(NV_REMOTE_URART_DEST_ADDR, 0, 2, buf);
+	if(result == NV_OPER_FAILED){
+		osal_buffer_uint32(buf, 0);
+		osal_nv_item_init(NV_REMOTE_URART_DEST_ADDR, 2, buf);
 	}
 	osal_mem_free(buf);
 }

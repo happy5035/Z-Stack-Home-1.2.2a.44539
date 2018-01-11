@@ -68,6 +68,8 @@
  ***************************************************************************************************/
 /* Used to indentify the application ID for osal task */
 byte App_TaskID;
+byte GA_TaskID;
+
 
 /* ZTool protocal parameters */
 uint8 state;
@@ -152,6 +154,11 @@ void MT_UartRegisterTaskID( byte taskID )
   App_TaskID = taskID;
 }
 
+void MT_UartRegistGenericAppTaskId(uint8 taskID){
+	GA_TaskID = taskID;
+}
+
+
 /***************************************************************************************************
  * @fn      SPIMgr_CalcFCS
  *
@@ -196,7 +203,7 @@ void MT_UartProcessZToolData ( uint8 port, uint8 event )
 {
   uint8  ch;
   uint8  bytesInRxBuffer;
-  
+  uint8 _fcs;
   (void)event;  // Intentionally unreferenced parameter
 
   while (Hal_UART_RxBufLen(port))
@@ -281,17 +288,20 @@ void MT_UartProcessZToolData ( uint8 port, uint8 event )
       case FCS_STATE:
 
         FSC_Token = ch;
-
+		 _fcs = (MT_UartCalcFCS ((uint8*)&pMsg->msg[0], MT_RPC_FRAME_HDR_SZ + LEN_Token));
         /* Make sure it's correct */
-        if ((MT_UartCalcFCS ((uint8*)&pMsg->msg[0], MT_RPC_FRAME_HDR_SZ + LEN_Token) == FSC_Token))
+        if (_fcs == FSC_Token)
         {
           osal_msg_send( App_TaskID, (byte *)pMsg );
         }
-        else
+        else if(_fcs == (FSC_Token - 1))
         {
-          /* deallocate the msg */
-          osal_msg_deallocate ( (uint8 *)pMsg );
-        }
+          osal_msg_send(GA_TaskID, (byte *)pMsg);
+        }else{
+			/* deallocate the msg */
+			osal_msg_deallocate ( (uint8 *)pMsg );
+
+		}
 
         /* Reset the state, send or discard the buffers at this point */
         state = SOP_STATE;
