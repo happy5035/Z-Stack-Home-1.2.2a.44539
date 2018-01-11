@@ -1506,7 +1506,7 @@ void EndSendMtUartResponse(uint8* pkt,uint8 len){
 		GenericApp_DstAddr.endPoint = GENERICAPP_ENDPOINT;
 		GenericApp_DstAddr.addr.shortAddr = 0x00;
 		if (AF_DataRequest(&GenericApp_DstAddr, &GenericApp_epDesc, 
-			TEMP_HUM_DATA_CLUSTERID, 
+			REMOTE_UART_RESPONCE_CLUSTERID, 
 			len, 
 		(byte *) packet, 
 			&GenericApp_TransID, 
