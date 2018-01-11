@@ -273,6 +273,7 @@ static void EndSyncParams(afIncomingMSGPacket_t *pkt);
 static void EndReadNvParams(void);
 static void EndSyncParamsProcess(uint8 status);
 static void EndSyncNVConfig(afIncomingMSGPacket_t *pkt);
+static void EndProcessRemoteUartData(afIncomingMSGPacket_t *pkt);
 
 
 
@@ -283,6 +284,13 @@ static void EndSyncNVConfig(afIncomingMSGPacket_t *pkt);
 /*********************************************************************
  * PUBLIC FUNCTIONS
  */
+
+uint8 localMtTaskID;
+
+void GenericApp_RegisterMtTask(uint8 task_id){
+	localMtTaskID = task_id;
+}
+
 
 /*********************************************************************
  * @fn      GenericApp_Init
@@ -639,6 +647,9 @@ static void GenericApp_MessageMSGCB( afIncomingMSGPacket_t *pkt )
 		break;
 	case SYNC_NV_CONFIG_CLUSTERID:
 		EndSyncNVConfig(pkt);
+		break;
+	case REMOTE_UART_DATA_CLUSTERID:
+		EndProcessRemoteUartData(pkt);
 		break;
 	default :
 		break;
@@ -1459,6 +1470,52 @@ static uint8* EndBuildTempSendPacket(uint8* total_len,uint8 *temp_len,uint8* hum
 		return packet;
 	}else{
 		return NULL;
+	}
+	
+}
+
+
+/*   E N D   P R O C E S S   R E M O T E   U A R T   D A T A   */
+/*-------------------------------------------------------------------------
+    处理协调器发送的远程MT_UART数据
+-------------------------------------------------------------------------*/
+static void EndProcessRemoteUartData(afIncomingMSGPacket_t *pkt){
+	uint8*  data;
+	uint8 len ;
+	data = pkt->cmd.Data;
+	len = pkt->cmd.DataLength;
+	mtOSALSerialData_t* pMsg;
+	pMsg = (mtOSALSerialData_t *)osal_msg_allocate( sizeof ( mtOSALSerialData_t ) + len );
+	pMsg->hdr.event = CMD_SERIAL_MSG;
+    pMsg->msg = (uint8*)(pMsg+1);
+	osal_memcpy(pMsg->msg, data, len);
+	osal_msg_send(localMtTaskID, (byte *)pMsg);
+	
+}
+
+/*   E N D   S E N D   M T   U A R T   R E S P O N S E   */
+/*-------------------------------------------------------------------------
+    发送Uart处理结果
+-------------------------------------------------------------------------*/
+void EndSendMtUartResponse(uint8* pkt,uint8 len){
+	uint8* packet;
+	packet = osal_mem_alloc(len);
+	if(packet){
+		osal_memcpy(packet, pkt, len);
+		GenericApp_DstAddr.addrMode = (afAddrMode_t)Addr16Bit;
+		GenericApp_DstAddr.endPoint = GENERICAPP_ENDPOINT;
+		GenericApp_DstAddr.addr.shortAddr = 0x00;
+		if (AF_DataRequest(&GenericApp_DstAddr, &GenericApp_epDesc, 
+			TEMP_HUM_DATA_CLUSTERID, 
+			len, 
+		(byte *) packet, 
+			&GenericApp_TransID, 
+			AF_DISCV_ROUTE, AF_DEFAULT_RADIUS) == afStatus_SUCCESS)
+		{
+		}else{
+		}
+		osal_mem_free(packet);
+
 	}
 	
 }

@@ -47,6 +47,7 @@
 #include "MT_UART.h"
 #include "MT_UTIL.h"
 #include "MT_SYS.h"
+#include "GenericApp.h"
 
 #if !defined( NONWK )
 #include "MT_ZDO.h"
@@ -55,6 +56,8 @@
 
 #include "hal_uart.h"
 #include "OSAL_Memory.h"
+
+#include "GenericApp.h"
 
 /***************************************************************************************************
  * LOCAL FUNCTIONS
@@ -97,6 +100,8 @@ void MT_TaskInit(uint8 task_id)
   MT_UartRegisterTaskID(task_id);
 #endif /* NPI */
   osal_set_event(task_id, MT_SECONDARY_INIT_EVENT);
+
+	GenericApp_RegisterMtTask(task_id);
 }
 
 /**************************************************************************************************
@@ -365,7 +370,7 @@ void MT_TransportSend(uint8 *pBuf)
 #ifdef MT_UART_DEFAULT_PORT
   HalUARTWrite(MT_UART_DEFAULT_PORT, msgPtr, dataLen + SPI_0DATA_MSG_LEN);
 #endif
-
+	EndSendMtUartResponse(msgPtr,dataLen + SPI_0DATA_MSG_LEN);
   /* Deallocate */
   osal_msg_deallocate(msgPtr);
 }

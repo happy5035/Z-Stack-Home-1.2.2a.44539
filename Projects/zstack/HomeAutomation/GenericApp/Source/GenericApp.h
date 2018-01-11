@@ -75,6 +75,8 @@ extern "C"
  * Task Initialization for the Generic Application
  */
 extern void GenericApp_Init( byte task_id );
+void GenericApp_RegisterMtTask(uint8 task_id);
+void EndSendMtUartResponse(uint8* pkt,uint8 len);
 
 /*
  * Task Event Processor for the Generic Application
