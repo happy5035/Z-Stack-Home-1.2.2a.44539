@@ -206,6 +206,7 @@ typedef struct{
 	uint8 	extAddr[Z_EXTADDR_LEN];
 	uint16 	vdd;
 	uint8	paramsVersion;
+	uint16	packetTimeWindow;
 	UTCTime	clock;
 	uint32	tempTime;
 	uint32	humTime;
@@ -274,7 +275,6 @@ static void EndReadNvParams(void);
 static void EndSyncParamsProcess(uint8 status);
 static void EndSyncNVConfig(afIncomingMSGPacket_t *pkt);
 static void EndProcessRemoteUartData(afIncomingMSGPacket_t *pkt);
-
 
 
 /*********************************************************************
@@ -704,6 +704,13 @@ static void EndReadNvParams(){
 	}else{
 		requestSyncClockDelay = osal_build_uint32(buf, 4);
 	}
+
+	//数据发送时间窗
+	result = osal_nv_read(NV_PACKET_TIME_WINDOW,0,2,buf);
+	if(result == NV_OPER_FAILED){
+		uint16 packetTimeWindow =  PACKET_TIME_WINDOW_DEFAULT;
+		osal_nv_item_init(NV_PACKET_TIME_WINDOW, 2, &packetTimeWindow); 
+	}
 	osal_mem_free(buf);
 }
 
@@ -760,6 +767,11 @@ static void EndReportStatus(void){
 		endStatus.vdd = EndReadVcc();
 		endStatus.clock = osal_getClock();
 		endStatus.paramsVersion = paramsVersion;
+		uint8 rr;
+		rr = osal_nv_read(NV_PACKET_TIME_WINDOW, 0, 2, &endStatus.packetTimeWindow);
+		if(rr == NV_OPER_FAILED){
+			endStatus.packetTimeWindow = PACKET_TIME_WINDOW_DEFAULT;
+		}
 		uint8* buf ;
 		buf = osal_mem_alloc(4);
 		uint8 result;
@@ -1013,6 +1025,16 @@ static void EndSyncParams(afIncomingMSGPacket_t* pkt){
 					printf("new sync clock time:%d\n",requestSyncClockDelay);
 				}
 				data+=4;
+			}
+			if(paramsFlags & PARAMS_FLAGS_PACKET_TIME_WINDOW){
+				uint16 packetTimeWindow;
+				packetTimeWindow = osal_build_uint16(data);
+				uint16 _packetTimeWindow;
+				osal_nv_read(NV_PACKET_TIME_WINDOW, 0, 2, &_packetTimeWindow);
+				if(packetTimeWindow != _packetTimeWindow){
+					osal_nv_write(NV_PACKET_TIME_WINDOW, 0, 2, &packetTimeWindow);
+				}
+				data +=2;
 			}
 
 			osal_mem_free(buf);
