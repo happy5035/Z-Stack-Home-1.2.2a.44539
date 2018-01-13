@@ -689,6 +689,16 @@ static void ReadNvParams(){
 		osal_buffer_uint32(buf, 0);
 		osal_nv_item_init(NV_REMOTE_URART_DEST_ADDR, 2, buf);
 	}
+	result = osal_nv_read(NV_PACKET_TIME_WINDOW, 0, 2, buf);
+	if(result == NV_OPER_FAILED){
+		osal_memset(buf, 0, 4);
+		osal_nv_item_init(NV_PACKET_TIME_WINDOW, 2,  buf);
+	}
+	result = osal_nv_read(NV_PACKET_TIME_WINDOW_INTERVAL, 0, 2, buf);
+	if(result == NV_OPER_FAILED){
+		uint16 packetTimeWindowInterval = PACKET_TIME_WINDOW_INTERVAL_DEFAULT;
+		osal_nv_item_init(NV_PACKET_TIME_WINDOW_INTERVAL, 2,  &packetTimeWindowInterval);
+	}
 	osal_mem_free(buf);
 }
 
@@ -864,7 +874,7 @@ static void EndReportStatus(void){
     终端节点同步协调器设置参数
 -------------------------------------------------------------------------*/
 static void EndSyncParams(afIncomingMSGPacket_t* pkt){
-	printf(pkt->cmd.Data);
+//	printf(pkt->cmd.Data);
 }
 
 

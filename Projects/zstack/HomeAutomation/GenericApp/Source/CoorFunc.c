@@ -311,19 +311,54 @@ void CoorProcessEndSyncParams(afIncomingMSGPacket_t *pkt){
 		
 	}
 	if(flag == 0){
-		GenericApp_DstAddr.addrMode = (afAddrMode_t)Addr16Bit;
-		GenericApp_DstAddr.endPoint = GENERICAPP_ENDPOINT;
-		GenericApp_DstAddr.addr.shortAddr = pkt->srcAddr.addr.shortAddr;
-		if (AF_DataRequest(&GenericApp_DstAddr, &GenericApp_epDesc, 
-			SYNC_PARAM_CLUSTERID, 
-			1, 
-			(byte *) &_paramsVersion, 
-			&GenericApp_TransID, 
-			AF_DISCV_ROUTE, AF_DEFAULT_RADIUS) == afStatus_SUCCESS){				
-		}else{
+		uint8* packet;
+		uint8 len = 1+4*2+2;	//pv+paramsflag+timeWindow
+		packet = osal_mem_alloc(len);
+		if(packet){
+			uint8* _packet = packet;
+			*_packet++ = _paramsVersion;
+			uint32 paramsFlag = 0;
+			paramsFlag |= PARAMS_FLAGS_SYNC_CLOCK_TIME;
+			paramsFlag |= PARAMS_FLAGS_PACKET_TIME_WINDOW;
+			_packet = osal_memcpy(_packet, &paramsFlag, 4);
+			UTCTime time = osal_getClock();
+			_packet = osal_memcpy(_packet, &time, 4);
+			uint16 packetTimeWindow = CoorGetPacketTimeWindow();
+			osal_memcpy(_packet, &packetTimeWindow, 2);
+			GenericApp_DstAddr.addrMode = (afAddrMode_t)Addr16Bit;
+			GenericApp_DstAddr.endPoint = GENERICAPP_ENDPOINT;
+			GenericApp_DstAddr.addr.shortAddr = pkt->srcAddr.addr.shortAddr;
+			if (AF_DataRequest(&GenericApp_DstAddr, &GenericApp_epDesc, 
+				SYNC_PARAM_CLUSTERID, 
+				len, 
+				(byte *) packet, 
+				&GenericApp_TransID, 
+				AF_DISCV_ROUTE, AF_DEFAULT_RADIUS) == afStatus_SUCCESS){				
+			}else{
+			}
+			osal_mem_free(packet);
 		}
+		
 	}
 	
+}
+
+
+/*   C O O R   G E T   P A C K E T   T I M E   W I N D O W   */
+/*-------------------------------------------------------------------------
+    获取终端节点时间窗数值
+-------------------------------------------------------------------------*/
+uint16 CoorGetPacketTimeWindow(){
+	uint16 packetTimeWindow;
+	if(osal_nv_read(NV_PACKET_TIME_WINDOW, 0, 2, &packetTimeWindow) == NV_OPER_FAILED){
+		packetTimeWindow = PACKET_TIME_WINDOW_DEFAULT;
+	}
+	uint16 interval;
+	if(osal_nv_read(NV_PACKET_TIME_WINDOW_INTERVAL, 0, 2, &interval) == NV_OPER_FAILED){
+		interval = PACKET_TIME_WINDOW_INTERVAL_DEFAULT;
+	}
+	packetTimeWindow += interval;
+	return packetTimeWindow;
 }
 
 
