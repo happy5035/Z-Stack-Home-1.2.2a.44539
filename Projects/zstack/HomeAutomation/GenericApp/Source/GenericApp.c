@@ -207,6 +207,7 @@ typedef struct{
 	uint16 	vdd;
 	uint8	paramsVersion;
 	uint16	packetTimeWindow;
+	uint16	parentAddr;
 	UTCTime	clock;
 	uint32	tempTime;
 	uint32	humTime;
@@ -789,6 +790,7 @@ static void EndReportStatus(void){
 		endStatus.vdd = EndReadVcc();
 		endStatus.clock = osal_getClock();
 		endStatus.paramsVersion = paramsVersion;
+		endStatus.parentAddr = NLME_GetCoordShortAddr();
 		uint8 rr;
 		rr = osal_nv_read(NV_PACKET_TIME_WINDOW, 0, 2, &endStatus.packetTimeWindow);
 		if(rr == NV_OPER_FAILED){
