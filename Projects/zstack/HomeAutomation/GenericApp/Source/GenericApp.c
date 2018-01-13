@@ -1021,7 +1021,7 @@ static void EndSyncParams(afIncomingMSGPacket_t* pkt){
 
 //					osal_start_reload_timer(GenericApp_TaskID, SAMPLE_HUM_EVT, sampleHumTimeDelay);
 					osal_buffer_uint32( buf, sampleHumTimeDelay);
-					osal_nv_write(PARAMS_FLAGS_HUM_TIME, 0, 4,  buf);
+					osal_nv_write(NV_HUM_SAMPLE_TIME, 0, 4,  buf);
 					printf("new hum time:%d\n",sampleHumTimeDelay);
 				}
 				data+=4;
@@ -1032,7 +1032,7 @@ static void EndSyncParams(afIncomingMSGPacket_t* pkt){
 					tempPacketSendTimeDelay = _tempPacketSendTimeDelay;
 					osal_start_reload_timer(GenericApp_TaskID, TEMP_PACKET_SEND_EVT, tempPacketSendTimeDelay);
 					osal_buffer_uint32( buf, tempPacketSendTimeDelay);
-					osal_nv_write(PARAMS_FLAGS_PACKET_TIME, 0, 4,  buf);
+					osal_nv_write(NV_PACKET_SEND_TIME, 0, 4,  buf);
 					printf("new packet time:%d\n",tempPacketSendTimeDelay);
 				}
 				data+=4;
@@ -1043,7 +1043,7 @@ static void EndSyncParams(afIncomingMSGPacket_t* pkt){
 					requestSyncClockDelay = _requestSyncClockDelay;
 					osal_start_reload_timer(GenericApp_TaskID, REQUEST_SYNC_CLOCK_EVT, requestSyncClockDelay);
 					osal_buffer_uint32( buf, requestSyncClockDelay);
-					osal_nv_write(PARAMS_FLAGS_SYNC_CLOCK_TIME, 0, 4,  buf);
+					osal_nv_write(NV_SYNC_CLOCK_TIME, 0, 4,  buf);
 					printf("new sync clock time:%d\n",requestSyncClockDelay);
 				}
 				data+=4;
