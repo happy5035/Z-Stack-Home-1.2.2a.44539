@@ -318,7 +318,7 @@ void CoorProcessEndSyncParams(afIncomingMSGPacket_t *pkt){
 			uint8* _packet = packet;
 			*_packet++ = _paramsVersion;
 			uint32 paramsFlag = 0;
-			paramsFlag |= PARAMS_FLAGS_SYNC_CLOCK_TIME;
+			paramsFlag |= PARAMS_FLAGS_CLOCK;
 			paramsFlag |= PARAMS_FLAGS_PACKET_TIME_WINDOW;
 			_packet = osal_memcpy(_packet, &paramsFlag, 4);
 			UTCTime time = osal_getClock();
@@ -358,6 +358,14 @@ uint16 CoorGetPacketTimeWindow(){
 		interval = PACKET_TIME_WINDOW_INTERVAL_DEFAULT;
 	}
 	packetTimeWindow += interval;
+	uint32 packetTime;
+	if(osal_nv_read(NV_PACKET_SEND_TIME, 0, 4, &packetTime) == NV_OPER_FAILED){
+		packetTimeWindow = PACKET_TIME_WINDOW_DEFAULT;
+	}
+	packetTime = packetTime / 1000;
+	if(packetTimeWindow >= packetTime){
+		packetTimeWindow = PACKET_TIME_WINDOW_DEFAULT;
+	}
 	osal_nv_write(NV_PACKET_TIME_WINDOW, 0, 2, &packetTimeWindow);
 	return packetTimeWindow;
 }
