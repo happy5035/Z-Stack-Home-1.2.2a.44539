@@ -731,14 +731,36 @@ static void EndStartProcess(){
 	}
 	
 	if(startProcessStatus == startProcessStartTimer){
+		//等待到达发送时间窗才开始发送数据
 		
-		//开启采样和发送定时器
 		//EndRequestSyncClock();
 		printf("start timer\n");
 		EndReadNvParams();
+		uint32 packetTime;
+		if(osal_nv_read(NV_PACKET_SEND_TIME, 0, 4, &packetTime) == NV_OPER_FAILED){
+			packetTime = TEMP_PACKET_SEND_TIME_DELAY_DEFAULT;
+		}
+		packetTime = packetTime / 1000; //换算成s
+		uint16 timeWindow;
+		if(osal_nv_read(NV_PACKET_TIME_WINDOW, 0, 2, &timeWindow) == NV_OPER_FAILED){
+			timeWindow = PACKET_TIME_WINDOW_DEFAULT;
+		}
+		UTCTime currentTime = osal_getClock();
+		uint16 tick = currentTime % packetTime ;
+		uint32 delayTime;
+		if(timeWindow <= tick){
+			delayTime = tick - timeWindow;
+		}else{
+			delayTime = timeWindow - tick + packetTime;
+		}
+		if(delayTime > 2*packetTime){
+			delayTime = packetTime;
+		}
+		delayTime *= 1000;
 		osal_start_timerEx(GenericApp_TaskID, SAMPLE_TEMP_EVT, sampleTempTimeDelay);
 	//	osal_start_reload_timer(GenericApp_TaskID, SAMPLE_HUM_EVT, sampleHumTimeDelay);
-		osal_start_timerEx(GenericApp_TaskID, TEMP_PACKET_SEND_EVT, tempPacketSendTimeDelay);
+		//第一次在同步时间窗发送数据
+		osal_start_timerEx(GenericApp_TaskID, TEMP_PACKET_SEND_EVT, delayTime);			
 		EndTempSampleCfg();
 		osal_start_timerEx(GenericApp_TaskID, REQUEST_SYNC_CLOCK_EVT, requestSyncClockDelay);
 		osal_pwrmgr_device(PWRMGR_BATTERY);
