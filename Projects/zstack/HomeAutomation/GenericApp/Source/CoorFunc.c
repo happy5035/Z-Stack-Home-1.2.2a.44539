@@ -358,6 +358,7 @@ uint16 CoorGetPacketTimeWindow(){
 		interval = PACKET_TIME_WINDOW_INTERVAL_DEFAULT;
 	}
 	packetTimeWindow += interval;
+	osal_nv_write(NV_PACKET_TIME_WINDOW, 0, 2, &packetTimeWindow);
 	return packetTimeWindow;
 }
 
