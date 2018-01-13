@@ -649,7 +649,7 @@ static void ReadNvParams(){
 	result = osal_nv_read(NV_PARAM_FLAGS, 0, 4, buf);
 	if(result == NV_OPER_FAILED){
 		osal_buffer_uint32(buf, 0);
-		osal_nv_item_init(NV_PARAM_FLAGS, 4, 0);
+		osal_nv_item_init(NV_PARAM_FLAGS, 4, buf);
 	}
 	//读取温度采样频率
 	result = osal_nv_read(NV_TEMP_SAMPLE_TIME, 0, 4, buf);

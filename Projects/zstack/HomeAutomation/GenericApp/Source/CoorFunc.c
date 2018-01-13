@@ -287,7 +287,7 @@ void CoorProcessEndStatus(afIncomingMSGPacket_t *pkt){
 		printf("same params version %d",_paramsVersion);
 	}else{
 		printf("new params version %d",_paramsVersion);
-		CoorSendSyncParams(_paramsVersion,pkt->srcAddr.addr.shortAddr);
+//		CoorSendSyncParams(_paramsVersion,pkt->srcAddr.addr.shortAddr);
 	}
 	osal_mem_free(buf);
 	
