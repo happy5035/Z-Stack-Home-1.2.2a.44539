@@ -748,10 +748,10 @@ static void EndStartProcess(){
 		UTCTime currentTime = osal_getClock();
 		uint16 tick = currentTime % packetTime ;
 		uint32 delayTime;
-		if(timeWindow <= tick){
-			delayTime = tick - timeWindow;
+		if(timeWindow >= tick){
+			delayTime = timeWindow - tick;
 		}else{
-			delayTime = timeWindow - tick + packetTime;
+			delayTime = timeWindow + packetTime - tick ;
 		}
 		if(delayTime > 2*packetTime){
 			delayTime = packetTime;
