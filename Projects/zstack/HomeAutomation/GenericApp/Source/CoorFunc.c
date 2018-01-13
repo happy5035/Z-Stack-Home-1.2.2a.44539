@@ -364,7 +364,7 @@ uint16 CoorGetPacketTimeWindow(){
 	}
 	packetTime = packetTime / 1000;
 	if(packetTimeWindow >= packetTime){
-		packetTimeWindow = PACKET_TIME_WINDOW_DEFAULT;
+		packetTimeWindow -= packetTime;
 	}
 	osal_nv_write(NV_PACKET_TIME_WINDOW, 0, 2, &packetTimeWindow);
 	return packetTimeWindow;
