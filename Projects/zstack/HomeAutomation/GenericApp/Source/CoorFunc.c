@@ -289,23 +289,23 @@ void CoorSendSyncParams(uint8 paramsVersion,uint16 destAddr){
 }
 
 void CoorProcessEndStatus(afIncomingMSGPacket_t *pkt){
-	uint8* data = pkt->cmd.Data;
-	*data++;
-	endStatus_t eStatus;
-	osal_memcpy(&eStatus,data,sizeof(endStatus_t));
-	uint8* buf = osal_mem_alloc(4);
-	osal_nv_read(NV_PARAM_VERSION, 0, 1, buf);
-	uint8 _paramsVersion = *buf;
-	if(_paramsVersion == eStatus.paramsVersion){
-		printf("same params version %d",_paramsVersion);
-	}else{
-		printf("new params version %d",_paramsVersion);
-//		CoorSendSyncParams(_paramsVersion,pkt->srcAddr.addr.shortAddr);
-	}
-	osal_mem_free(buf);
+//	uint8* data = pkt->cmd.Data;
+//	*data++;
+//	endStatus_t eStatus;
+//	osal_memcpy(&eStatus,data,sizeof(endStatus_t));
+//	uint8* buf = osal_mem_alloc(4);
+//	osal_nv_read(NV_PARAM_VERSION, 0, 1, buf);
+//	uint8 _paramsVersion = *buf;
+//	if(_paramsVersion == eStatus.paramsVersion){
+//		printf("same params version %d",_paramsVersion);
+//	}else{
+//		printf("new params version %d",_paramsVersion);
+////		CoorSendSyncParams(_paramsVersion,pkt->srcAddr.addr.shortAddr);
+//	}
+//	osal_mem_free(buf);
 	
 #ifdef MT_TASK
-//	MT_BuildAndSendZToolResponse(MT_RSP_CMD_APP, MT_APP_MSG, pkt->cmd.DataLength, pkt->cmd.Data);
+	MT_BuildAndSendZToolResponse(MT_RSP_CMD_APP, MT_APP_MSG, pkt->cmd.DataLength, pkt->cmd.Data);
 #endif
 }
 
