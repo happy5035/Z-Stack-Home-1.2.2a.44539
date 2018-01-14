@@ -176,6 +176,8 @@ typedef struct
 	uint8 	extAddr[Z_EXTADDR_LEN];
 	uint16 	vdd;
 	uint8   paramsVersion;
+	uint16	packetTimeWindow;
+	uint16	parentAddr;
 	UTCTime tempStartTime;
 	uint32	sampleFreq;
 	uint8 	tempNumbers;
@@ -1466,6 +1468,14 @@ static uint8* EndBuildTempSendPacket(uint8* total_len,uint8 *temp_len,uint8* hum
 	printf("temp packet header:\n");
 	printf("sampleFreq:%d\n",packetHead.sampleFreq);
 	printf("numbers:%d\n",packetHead.tempNumbers);
+	uint16 window;
+	if(osal_nv_read(NV_PACKET_TIME_WINDOW, 0, 2, &window) == NV_OPER_FAILED){
+		window = PACKET_TIME_WINDOW_DEFAULT;
+	}
+	packetHead.packetTimeWindow = window;
+	uint16 parent;
+	parent = NLME_GetCoordShortAddr();
+	packetHead.parentAddr = parent;
 	
 	// Humidity header
 	*hum_len = humQueue.count;
@@ -1486,7 +1496,7 @@ static uint8* EndBuildTempSendPacket(uint8* total_len,uint8 *temp_len,uint8* hum
 
 	
 	//复制数据到发送数据包
-	*total_len = sizeof(tempPacket_t) + sizeof(int16) * (*temp_len) + sizeof(16) * (*hum_len) + 1;
+	*total_len = sizeof(tempPacket_t) + sizeof(int16) * (*temp_len) + sizeof(int16) * (*hum_len) + 1;
 	packet = osal_mem_alloc(* total_len);
 	uint8* _packet;
 	_packet = packet;
