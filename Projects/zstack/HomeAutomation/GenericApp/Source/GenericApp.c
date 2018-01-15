@@ -625,6 +625,12 @@ static void GenericApp_MessageMSGCB( afIncomingMSGPacket_t *pkt )
 	case REMOTE_MT_UART_RESPONSE_CLUSTERID:
 		CoorProcessUartResponse(pkt);
 		break;
+	case ROUTER_STATUS_CLUSTERID:
+		CoorProcessRouterStatus(pkt);
+		break;
+	case SEND_APP_MSG_CLUSTERID:
+		CoorSendAppMsg(pkt);
+		break;
 	default :
 		break;
   }

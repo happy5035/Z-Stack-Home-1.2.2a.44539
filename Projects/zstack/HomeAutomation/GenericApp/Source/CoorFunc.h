@@ -20,4 +20,6 @@ void CoorSendNVConfig(afIncomingMSGPacket_t *pkt);
 void CoorMTUartSerialMsgProcess(mtOSALSerialData_t *msg_ptr);
 void CoorProcessUartResponse(afIncomingMSGPacket_t *pkt);
 uint16 CoorGetPacketTimeWindow(void);
+void CoorProcessRouterStatus(afIncomingMSGPacket_t *pkt);
+void CoorSendAppMsg( afIncomingMSGPacket_t *pkt);
 #endif

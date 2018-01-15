@@ -475,5 +475,27 @@ void CoorProcessUartResponse(afIncomingMSGPacket_t *pkt){
 #endif
 }
 
+/*   C O O R   P R O C E S S   R O U T E R   S T A T U S   */
+/*-------------------------------------------------------------------------
+    处理路由器发送的状态数据包
+-------------------------------------------------------------------------*/
+void CoorProcessRouterStatus(afIncomingMSGPacket_t *pkt){
+#ifdef MT_TASK	
+	MT_BuildAndSendZToolResponse(MT_RSP_CMD_APP, MT_APP_MSG, pkt->cmd.DataLength, pkt->cmd.Data);
+#endif
+
+}
+
+/*   C O O R   S E N D   A P P   M S G   */
+/*-------------------------------------------------------------------------
+    转发app msg 给上位机
+-------------------------------------------------------------------------*/
+void CoorSendAppMsg( afIncomingMSGPacket_t *pkt){
+#ifdef MT_TASK	
+	MT_BuildAndSendZToolResponse(MT_RSP_CMD_APP, MT_APP_MSG, pkt->cmd.DataLength, pkt->cmd.Data);
+#endif
+
+}
+
 
 
