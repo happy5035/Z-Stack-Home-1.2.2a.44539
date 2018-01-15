@@ -22,6 +22,9 @@
 #define TEMP_HUM_DATA_CLUSTERID  	  0xf4
 #define SYNC_FREQ_CLUSTERID	  	      0xF5
 #define SYNC_PARAM_CLUSTERID		  0xF6
+#define ROUTER_STATUS_CLUSTERID				0xFD
+#define REBOOT_ROUTER_CLUSTERID				0xE0
+#define ROUTER_NV_CONFIG_CLUSTERID			0xE1
 
 
 
@@ -40,6 +43,7 @@
 #define SAMPLE_TASK_EVT	  	  		  0x0010
 #define TEMP_PACKET_SEND_EVT		  0x0020
 #define REQUEST_SYNC_CLOCK_EVT		  0x0040
+#define REPORT_STATUS_EVT			  0x0080
 
 
 //采集任务
@@ -57,6 +61,7 @@
 #define COOR_START_CMD				  0xF3
 #define MASTER_SET_CLOCK_CMD		  0xF4 
 #define MASTER_SET_FREQ_CMD	          0xF5
+#define ROUTER_STATUS_CMD			  0xFD
 
 //uart constans
 // 命令格式为
@@ -70,6 +75,7 @@
 #define MT_RSP_CMD_APP				  ((uint8)MT_RPC_CMD_SRSP | (uint8)MT_RPC_SYS_APP)
 
 
-
+#define NV_REPORT_TIME				0x0601
+#define REPORT_TIME_DEFAULT			600000
 
 #endif
