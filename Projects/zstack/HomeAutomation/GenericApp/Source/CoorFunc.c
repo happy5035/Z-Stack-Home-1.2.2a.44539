@@ -480,9 +480,23 @@ void CoorProcessUartResponse(afIncomingMSGPacket_t *pkt){
     处理路由器发送的状态数据包
 -------------------------------------------------------------------------*/
 void CoorProcessRouterStatus(afIncomingMSGPacket_t *pkt){
-#ifdef MT_TASK	
-	MT_BuildAndSendZToolResponse(MT_RSP_CMD_APP, MT_APP_MSG, pkt->cmd.DataLength, pkt->cmd.Data);
+	
+#ifdef MT_TASK
+		uint8* packet;
+		uint16 len;
+		len = pkt->cmd.DataLength + 2;
+		packet = osal_mem_alloc(len);
+		if(packet){
+			osal_memcpy(packet,pkt->cmd.Data,pkt->cmd.DataLength);
+			*(packet + len - 2) = pkt->rssi;
+			*(packet + len - 1) = pkt->LinkQuality;
+			MT_BuildAndSendZToolResponse(MT_RSP_CMD_APP, MT_APP_MSG, len, packet);
+			osal_mem_free(packet);
+		}
+		
+		
 #endif
+
 
 }
 
