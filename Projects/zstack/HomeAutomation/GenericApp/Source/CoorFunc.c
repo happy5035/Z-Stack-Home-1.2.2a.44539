@@ -219,68 +219,67 @@ void CoorSendSyncParams(uint8 paramsVersion,uint16 destAddr){
 	osal_nv_read(NV_PARAM_FLAGS,0,4,buf);
 	paramsFlag = osal_build_uint32(buf, 4);
 	uint32 _paramsFlag = 0;
-	printf("params flags %d",paramsFlag);
-	if(paramsFlag != 0){
-		uint8 *packet;
-		uint8 len;
-		len = 1 + 4+ 4*5 + 2;// pv+pf+4times+timwWindow
-		packet = osal_mem_alloc(len);
-		uint8* _packet = packet;
-		*_packet++ = paramsVersion;
-		_packet = osal_buffer_uint32(_packet, paramsFlag);
-		
-		osal_buffer_uint32(buf, osal_getClock());
-		osal_memcpy(_packet,buf,4);
-		_paramsFlag |= PARAMS_FLAGS_CLOCK;
-		_packet +=4;
-		
-		if(paramsFlag & PARAMS_FLAGS_TEMP_TIME){
-			osal_nv_read(NV_TEMP_SAMPLE_TIME, 0, 4, _packet);
-			_paramsFlag |= PARAMS_FLAGS_TEMP_TIME;
-			_packet+=4;
+//	printf("params flags %d",paramsFlag);
+	uint8 *packet;
+	uint8 len;
+	len = 1 + 4+ 4*5 + 2;// pv+pf+4times+timwWindow
+	packet = osal_mem_alloc(len);
+	uint8* _packet = packet;
+	*_packet++ = paramsVersion;
+	_packet = osal_buffer_uint32(_packet, paramsFlag);
+	
+	osal_buffer_uint32(buf, osal_getClock());
+	osal_memcpy(_packet,buf,4);
+	_paramsFlag |= PARAMS_FLAGS_CLOCK;
+	_packet +=4;
+	
+	if(paramsFlag & PARAMS_FLAGS_TEMP_TIME){
+		osal_nv_read(NV_TEMP_SAMPLE_TIME, 0, 4, _packet);
+		_paramsFlag |= PARAMS_FLAGS_TEMP_TIME;
+		_packet+=4;
+	}else{
+		len -=4;
+	}
+	
+	if(paramsFlag & PARAMS_FLAGS_HUM_TIME){
+		osal_nv_read(NV_HUM_SAMPLE_TIME, 0, 4, _packet);
+		_paramsFlag |= PARAMS_FLAGS_HUM_TIME;
+		_packet+=4;
+	}else{
+		len -=4;
+	}
+	
+	if(paramsFlag & PARAMS_FLAGS_PACKET_TIME){
+		osal_nv_read(NV_PACKET_SEND_TIME, 0, 4, _packet);
+		_paramsFlag |= PARAMS_FLAGS_PACKET_TIME;
+		_packet+=4;
+	}else{
+		len -=4;
+	}
+	if(paramsFlag & PARAMS_FLAGS_SYNC_CLOCK_TIME){
+		osal_nv_read(NV_SYNC_CLOCK_TIME, 0, 4, _packet);
+		_paramsFlag |= PARAMS_FLAGS_SYNC_CLOCK_TIME;
+		_packet+=4;
+	}else{
+		len -=4;
+	}
+	_paramsFlag |= PARAMS_FLAGS_PACKET_TIME_WINDOW;
+	uint16 packetTimeWindow = CoorGetPacketTimeWindow();
+	osal_memcpy(_packet, &packetTimeWindow, 2);
+	if(len >5){
+		GenericApp_DstAddr.addrMode = (afAddrMode_t)Addr16Bit;
+		GenericApp_DstAddr.endPoint = GENERICAPP_ENDPOINT;
+		GenericApp_DstAddr.addr.shortAddr = destAddr;
+		if (AF_DataRequest(&GenericApp_DstAddr, &GenericApp_epDesc, 
+			SYNC_PARAM_CLUSTERID, 
+			len, 
+			(byte *) packet, 
+			&GenericApp_TransID, 
+			AF_DISCV_ROUTE, AF_DEFAULT_RADIUS) == afStatus_SUCCESS){				
 		}else{
-			len -=4;
 		}
-		
-		if(paramsFlag & PARAMS_FLAGS_HUM_TIME){
-			osal_nv_read(NV_HUM_SAMPLE_TIME, 0, 4, _packet);
-			_paramsFlag |= PARAMS_FLAGS_HUM_TIME;
-			_packet+=4;
-		}else{
-			len -=4;
-		}
-		
-		if(paramsFlag & PARAMS_FLAGS_PACKET_TIME){
-			osal_nv_read(NV_PACKET_SEND_TIME, 0, 4, _packet);
-			_paramsFlag |= PARAMS_FLAGS_PACKET_TIME;
-			_packet+=4;
-		}else{
-			len -=4;
-		}
-		if(paramsFlag & PARAMS_FLAGS_SYNC_CLOCK_TIME){
-			osal_nv_read(NV_SYNC_CLOCK_TIME, 0, 4, _packet);
-			_paramsFlag |= PARAMS_FLAGS_SYNC_CLOCK_TIME;
-			_packet+=4;
-		}else{
-			len -=4;
-		}
-		_paramsFlag |= PARAMS_FLAGS_PACKET_TIME_WINDOW;
-		uint16 packetTimeWindow = CoorGetPacketTimeWindow();
-		osal_memcpy(_packet, &packetTimeWindow, 2);
-		if(len >5){
-			GenericApp_DstAddr.addrMode = (afAddrMode_t)Addr16Bit;
-			GenericApp_DstAddr.endPoint = GENERICAPP_ENDPOINT;
-			GenericApp_DstAddr.addr.shortAddr = destAddr;
-			if (AF_DataRequest(&GenericApp_DstAddr, &GenericApp_epDesc, 
-				SYNC_PARAM_CLUSTERID, 
-				len, 
-				(byte *) packet, 
-				&GenericApp_TransID, 
-				AF_DISCV_ROUTE, AF_DEFAULT_RADIUS) == afStatus_SUCCESS){				
-			}else{
-			}
 
-		}
+		
 		
 		osal_mem_free(packet);
 		osal_mem_free(buf);
