@@ -58,7 +58,7 @@
  *                        Note that only one of them can be defined
  * ------------------------------------------------------------------------------------------------
  */
-#define xHAL_PA_LNA
+#define HAL_PA_LNA
 #define xHAL_PA_LNA_CC2590
 #define xHAL_PA_LNA_SE2431L
 #define xHAL_PA_LNA_CC2592
