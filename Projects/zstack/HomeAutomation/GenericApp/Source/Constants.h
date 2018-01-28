@@ -44,6 +44,7 @@
 #define TEMP_PACKET_SEND_EVT		  0x0020
 #define REQUEST_SYNC_CLOCK_EVT		  0x0040
 #define REPORT_STATUS_EVT			  0x0080
+#define REPORT_HEAP_STATUS_EVT		  0x0100
 
 
 //采集任务

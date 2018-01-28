@@ -326,6 +326,7 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
 			}
 			if(GenericApp_NwkState == DEV_ROUTER){
 				RouterReportStatus();
+				osal_start_reload_timer(GenericApp_TaskID, REPORT_HEAP_STATUS_EVT, 1000);
 			}
 			if(GenericApp_NwkState == DEV_END_DEVICE){
 				
@@ -355,6 +356,12 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
 		}
 		osal_start_timerEx(GenericApp_TaskID, REPORT_STATUS_EVT, reportTime);
   	return events ^ REPORT_STATUS_EVT;
+  }
+  if(events & REPORT_HEAP_STATUS_EVT){
+	uint16 stack_used = osal_stack_used();
+	uint16 memAlo = osal_heap_mem_used();
+  	printf("%d,%d\n",stack_used,memAlo);
+	return events ^ REPORT_HEAP_STATUS_EVT;
   }
 	
   return 0;
