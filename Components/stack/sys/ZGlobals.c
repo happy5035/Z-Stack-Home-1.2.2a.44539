@@ -161,7 +161,7 @@ uint8 zgNwkLeaveRequestAllowed = TRUE;
 #if ( ZG_BUILD_ENDDEVICE_TYPE )
 uint8 zgNwkParentInformation = NWK_PARENT_INFO_UNDEFINED;
 #else
-uint8 zgNwkParentInformation = NWK_PARENT_INFO_ORPHAN_NOTIFICATION;
+uint8 zgNwkParentInformation = NWK_PARENT_INFO_MAC_DATA_POLL;
 #endif
 
 // This is an index into table Requested Timeout Enumerated Values.
