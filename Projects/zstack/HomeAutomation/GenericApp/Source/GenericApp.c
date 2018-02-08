@@ -450,6 +450,8 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
 				startProcessStatus = startProcessInit;
 				
 				EndStartProcess();
+			//修复终端节点rejion在某些情况下PollRate不为0。
+				NLME_SetPollRate(0);
 				
 			}
             
