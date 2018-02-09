@@ -183,7 +183,7 @@ uint32 zgEndDeviceKAInterval = 0;
 //
 // NOTICE:  Before enabling Child Aging make sure to review all the related
 // definitions in this file, especially zgNwkParentInformation.
-uint8 zgChildAgingEnable = TRUE;
+uint8 zgChildAgingEnable = FALSE;
 
 /*********************************************************************
  * APS GLOBAL VARIABLES
