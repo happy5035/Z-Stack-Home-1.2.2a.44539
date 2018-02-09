@@ -539,6 +539,13 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
 		return events ^ END_RESET_TIEMOUT_EVT;
 	}
 
+	if(events & END_DATA_REQUEST_EVT){
+		//Í£Ö¹·¢ËÍDataRequest
+		NLME_SetPollRate(0);
+		startProcessStatus = startProcessStartTimer;
+		EndStartProcess();
+		return events ^ END_DATA_REQUEST_EVT;
+	}
 	
 //	if(events & SAMPLE_TEMP_READY_EVT){
 ////		EndSampleTask();
@@ -755,7 +762,8 @@ static void EndStartProcess(){
 		}else{
 			printf("send sync params failed\n");
 		}
-        startProcessStatus = startProcessStartTimer;
+		NLME_SetPollRate(1000);
+        osal_start_timerEx(GenericApp_TaskID, END_DATA_REQUEST_EVT, DATA_REQUEST_TIMEOUT_DEFAULT);
 
 	}
 	
@@ -940,7 +948,6 @@ static void EndReportStatus(void){
 		printf("report success\n");
 		reportStatus = reportInit;
 		startProcessStatus = startProcessSync;
-		EndStartProcess();
 	}
 	
 	
@@ -1098,6 +1105,11 @@ static void EndSyncParams(afIncomingMSGPacket_t* pkt){
 	}
 //	syncParamsStatus = SYNC_PARAMS_STATUS_RECEIVE;
 //	EndSyncParamsProcess(SYNC_PARAMS_STATUS_RECEIVE);
+	osal_stop_timerEx(GenericApp_TaskID, END_DATA_REQUEST_EVT);
+	startProcessStatus = startProcessStartTimer;
+	NLME_SetPollRate(0);
+	EndStartProcess();
+	
 }
 
 
