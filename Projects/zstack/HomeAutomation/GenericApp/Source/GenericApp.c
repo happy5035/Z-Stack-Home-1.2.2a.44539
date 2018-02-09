@@ -416,8 +416,8 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
           printf("%d data confirm,status: 0x%x\n", sentTransID,sentStatus);
 		  #endif
 		  if(sentTransID == reportPacketID){
-			reportStatus = reportConfirm;
-			EndReportStatus();
+//			reportStatus = reportConfirm;
+//			EndReportStatus();
 		  }
           if ( sentStatus != ZSuccess )
           {
@@ -449,10 +449,11 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
 			if(GenericApp_NwkState == DEV_END_DEVICE){
 				startProcessStatus = startProcessInit;
 				
-				EndStartProcess();
+//				EndStartProcess();
 			//修复终端节点rejion在某些情况下PollRate不为0。
 				NLME_SetPollRate(0);
-				
+			uint16 delay =(osal_rand() & 0x7FF) + 2000;
+			osal_start_timerEx(GenericApp_TaskID, END_START_PROCESS_EVT, delay);
 			}
             
           }
@@ -474,6 +475,11 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
     // return unprocessed events
     return (events ^ SYS_EVENT_MSG);
   }
+
+  	if(events & END_START_PROCESS_EVT){
+		EndStartProcess();
+		return events ^ END_START_PROCESS_EVT;
+	}
   
 	if(events & SAMPLE_TEMP_EVT){
 //		sampleTask |= SAMPLE_TEMP_START_TASK | SAMPLE_TEMP_READY_TASK;
@@ -731,8 +737,26 @@ static void EndStartProcess(){
 		EndReportStatus();
 	}
 	if(startProcessStatus == startProcessSync){
-		EndSyncParamsProcess(SYNC_PARAMS_STATUS_INIT);
+//		EndSyncParamsProcess(SYNC_PARAMS_STATUS_INIT);
 //		startProcessStatus= startProcessStartTimer;
+//	发送参数同步请求
+		GenericApp_DstAddr.addrMode = (afAddrMode_t)Addr16Bit;
+		GenericApp_DstAddr.endPoint = GENERICAPP_ENDPOINT;
+		GenericApp_DstAddr.addr.shortAddr = 0x00;
+		if (AF_DataRequest(&GenericApp_DstAddr, &GenericApp_epDesc, 
+					END_SYNC_PARAMS_CLUSTERID, 
+					1, //(byte)osal_strlen( theMessageData ) + 1,
+				&paramsVersion, 
+					&GenericApp_TransID, 
+					AF_DISCV_ROUTE , AF_DEFAULT_RADIUS) == afStatus_SUCCESS)
+		{
+			// Successfully requested to be sent.
+			printf("send sync params success\n");
+		}else{
+			printf("send sync params failed\n");
+		}
+        startProcessStatus = startProcessStartTimer;
+
 	}
 	
 	if(startProcessStatus == startProcessStartTimer){
@@ -892,7 +916,7 @@ static void EndReportStatus(void){
 					len, //(byte)osal_strlen( theMessageData ) + 1,
 				(byte *) packet, 
 					&GenericApp_TransID, 
-					AF_DISCV_ROUTE | AF_ACK_REQUEST, AF_DEFAULT_RADIUS) == afStatus_SUCCESS)
+					AF_DISCV_ROUTE, AF_DEFAULT_RADIUS) == afStatus_SUCCESS)
 				{
 					// Successfully requested to be sent.
 					HalLedBlink(HAL_LED_4, 1, 50, 500);
@@ -902,7 +926,8 @@ static void EndReportStatus(void){
 				}
 			osal_mem_free(packet);
 		}
-		osal_start_reload_timer(GenericApp_TaskID, END_REPORT_CONFIRM_TIMEOUT_EVT, reportConfirmTimeOut);
+//		osal_start_reload_timer(GenericApp_TaskID, END_REPORT_CONFIRM_TIMEOUT_EVT, reportConfirmTimeOut);
+		reportStatus = reportSucess;
 
 	}
 	if(reportStatus == reportConfirm){
@@ -912,7 +937,7 @@ static void EndReportStatus(void){
 		reportStatus = reportSucess;	
 	}
 	if(reportStatus == reportSucess){
-		printf("report success");
+		printf("report success\n");
 		reportStatus = reportInit;
 		startProcessStatus = startProcessSync;
 		EndStartProcess();
@@ -950,8 +975,8 @@ static void EndSyncParamsProcess(uint8 status){
 		}else{
 			printf("send sync params failed\n");
 		}
-		//syncParamsStatus = SYNC_PARAMS_STATUS_RECEIVE;
-		osal_start_timerEx(GenericApp_TaskID, END_SYNC_PARAMS_TIEMOUT_EVT, syncParamsTimeout);
+		status = SYNC_PARAMS_STATUS_END;
+//		osal_start_timerEx(GenericApp_TaskID, END_SYNC_PARAMS_TIEMOUT_EVT, syncParamsTimeout);
 	}
 	if(status == SYNC_PARAMS_STATUS_TIMEOUT){
 		//在规定时间内未收到同步参数命令
@@ -1072,7 +1097,7 @@ static void EndSyncParams(afIncomingMSGPacket_t* pkt){
 		
 	}
 //	syncParamsStatus = SYNC_PARAMS_STATUS_RECEIVE;
-	EndSyncParamsProcess(SYNC_PARAMS_STATUS_RECEIVE);
+//	EndSyncParamsProcess(SYNC_PARAMS_STATUS_RECEIVE);
 }
 
 
