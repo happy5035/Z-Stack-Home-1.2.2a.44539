@@ -44,9 +44,9 @@ uint8 TMP275_startMeasure(){
 	res =  FALSE;
 
 	//将sda，scl，alert拉高。防止漏电。
-//	WriteSDA1(); nk
-//	WriteSCL1();
-//	WriteAlert1();
+	WriteSDA1(); 
+	WriteSCL1();
+	WriteAlert1();
 	return res;
 }
 int16 TMP275_ReadTemp(){
