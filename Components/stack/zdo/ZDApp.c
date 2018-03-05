@@ -2610,7 +2610,13 @@ void ZDO_beaconNotifyIndCB( NLME_beaconInd_t *pBeacon )
       {
         capacity = pBeacon->deviceCapacity;
       }
-
+	  
+	  if(selected){
+	  	//禁止终端加入加入协调器
+		if(pBeacon->sourceAddr == 0x00){
+			selected = FALSE;
+		}
+	  }
       if ( ( (capacity) || ( pBeacon->sourceAddr == _NIB.nwkCoordAddress ) ) && (selected) )
       {
         // this is the new chosen router for joining...
