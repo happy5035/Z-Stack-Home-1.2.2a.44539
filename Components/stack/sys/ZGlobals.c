@@ -161,7 +161,7 @@ uint8 zgNwkLeaveRequestAllowed = TRUE;
 #if ( ZG_BUILD_ENDDEVICE_TYPE )
 uint8 zgNwkParentInformation = NWK_PARENT_INFO_UNDEFINED;
 #else
-uint8 zgNwkParentInformation = NWK_PARENT_INFO_ORPHAN_NOTIFICATION;
+uint8 zgNwkParentInformation = NWK_PARENT_INFO_MAC_DATA_POLL;
 #endif
 
 // This is an index into table Requested Timeout Enumerated Values.
@@ -183,7 +183,7 @@ uint32 zgEndDeviceKAInterval = 0;
 //
 // NOTICE:  Before enabling Child Aging make sure to review all the related
 // definitions in this file, especially zgNwkParentInformation.
-uint8 zgChildAgingEnable = FALSE;
+uint8 zgChildAgingEnable = TRUE;
 
 /*********************************************************************
  * APS GLOBAL VARIABLES
