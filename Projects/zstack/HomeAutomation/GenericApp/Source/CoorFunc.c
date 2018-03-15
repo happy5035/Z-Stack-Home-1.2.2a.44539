@@ -7,6 +7,7 @@
 #include "hal_led.h"
 #include "OSAL_Clock.h"
 #include "user_printf.h"
+#include "AddrMgr.h"
 
 extern byte GenericApp_TransID;
 extern endPointDesc_t GenericApp_epDesc;
@@ -18,6 +19,7 @@ extern afAddrType_t GenericApp_DstAddr;
 uint8 MasterSetClock(mtSysAppMsg_t *pkt); 
 uint8 MasterSetFreq(mtSysAppMsg_t *pkt);
 uint8 MasterSetNvConfig(mtSysAppMsg_t *pkt);
+uint8 MasterGetAddrCount(mtSysAppMsg_t *pkt);
 
 // Local variable
 typedef struct {
@@ -59,6 +61,7 @@ void CoorProcessTempHumData(afIncomingMSGPacket_t *pkt){
     通过串口发送协调器启动
 -------------------------------------------------------------------------*/
 void CoorSendCoorStart(void){
+	
 #ifdef MT_TASK
 	uint8 cmd = COOR_START_CMD;
 	MT_BuildAndSendZToolResponse(MT_RSP_CMD_APP, MT_APP_MSG, 1, &cmd);
@@ -84,6 +87,8 @@ void CoorProcessMtSysMsg(mtSysAppMsg_t *pkt){
 			break;
 		case MASTER_SET_NV_CONFIG_CMD:
 			retValue = MasterSetNvConfig(pkt);
+		case MASTER_GET_ADDR_COUNT_CMD:
+			retValue = MasterGetAddrCount(pkt);
 		default:
 			break;
 	}
@@ -212,6 +217,49 @@ uint8 MasterSetNvConfig(mtSysAppMsg_t *pkt){
 
 }
 
+
+/*   M A S T E R   G E T   A D D R   C O U N T   */
+/*-------------------------------------------------------------------------
+    获取
+-------------------------------------------------------------------------*/
+uint8 MasterGetAddrCount(mtSysAppMsg_t *pkt){
+#ifdef MT_TASK
+	
+	uint8 len; 
+	len = NWK_MAX_ADDRESSES*2 + 2;
+	uint8 result;
+	uint8 i;
+	uint8 count;
+	count = 0;
+	uint8* msg;
+	msg = osal_mem_alloc(len);
+	uint8 userType = *(pkt->appData);
+	if(msg){
+		osal_memset(msg, 0xff, len);
+		uint8* _msg = msg+2;
+		for(i=0;i<NWK_MAX_ADDRESSES;i++){
+			AddrMgrEntry_t addrEntry;
+			addrEntry.user = userType;
+			addrEntry.index = i;
+			result = AddrMgrEntryGet(&addrEntry);
+			if(result){
+				count++;
+				*_msg++ = LO_UINT16(addrEntry.nwkAddr);
+				*_msg++ = HI_UINT16(addrEntry.nwkAddr);
+			}
+		}
+		
+	*msg = MASTER_GET_ADDR_COUNT_CMD;
+	*(msg+1) = count;
+	MT_BuildAndSendZToolResponse(MT_RSP_CMD_APP, MT_APP_MSG, len, msg);
+
+	}
+	else{
+		return FAILURE;
+	}
+#endif
+	return SUCCESS;
+}
 
 void CoorSendSyncParams(uint8 paramsVersion,uint16 destAddr){
 	uint32 paramsFlag = 0;
