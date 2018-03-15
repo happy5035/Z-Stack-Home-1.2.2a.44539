@@ -69,6 +69,7 @@
 #include "sh20.h"
 #include "tmp275.h"
 #include "OSAL_Nv.h"
+#include "ZDSecMgr.h"
 
 #include "GenericApp.h"
 #include "DebugTrace.h"
@@ -328,7 +329,7 @@ void GenericApp_Init( uint8 task_id )
     QueueInit(&tempQueue);
 	QueueInit(&humQueue);
 
-//	ZDO_RegisterForZDOMsg(GenericApp_TaskID, Device_annce);
+	ZDO_RegisterForZDOMsg(GenericApp_TaskID, Device_annce);
 //    EndTempSampleCfg();
 
 	MT_UartRegistGenericAppTaskId(GenericApp_TaskID);
@@ -570,6 +571,16 @@ static void GenericApp_ProcessZDOMsgs( zdoIncomingMsg_t *inMsg )
         }
       }
       break;
+	
+	case Device_annce:
+		{
+		ZDO_DeviceAnnce_t devAnnc;
+		ZDO_ParseDeviceAnnce(inMsg, &devAnnc);
+		if(0 == (devAnnc.capabilities & 0x0F)){
+			ZDSecMgrAddrClear(devAnnc.extAddr);
+		}
+	}
+		break;
   }
 }
 
