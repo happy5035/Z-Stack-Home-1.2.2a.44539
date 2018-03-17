@@ -33,9 +33,9 @@
 void putchar(char c);
 void putchar(char c){
 #ifdef ZTOOL_P2
-  HalUARTWrite(HAL_UART_PORT_1,(uint8*)&c,1);
-#else
   HalUARTWrite(HAL_UART_PORT_0,(uint8*)&c,1);
+#else
+  HalUARTWrite(HAL_UART_PORT_1,(uint8*)&c,1);
 #endif
 }
 

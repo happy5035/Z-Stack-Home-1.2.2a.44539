@@ -1,5 +1,5 @@
 #include "i2c.h"
-#include "ioCC2530.h"
+#include "ioCC2538.h"
 
 
 /*我的管脚定义是
