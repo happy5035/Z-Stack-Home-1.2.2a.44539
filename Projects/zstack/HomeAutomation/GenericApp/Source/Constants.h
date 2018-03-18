@@ -4,7 +4,6 @@
 #include "ZComDef.h"
 #include "MT_RPC.h"
 #include "MT.h"
-#include "OSAL_Clock.h"
 
 
 // These constants are only for example and should be changed to the
@@ -16,21 +15,16 @@
 #define GENERICAPP_DEVICE_VERSION     0
 #define GENERICAPP_FLAGS              0
 
-#define GENERICAPP_MAX_CLUSTERS       	1
-#define GENERICAPP_CLUSTERID          		0xf1
-#define SYNC_TIME_CLUSTERID			  		0xf2
-#define REQUEST_SYNC_CLOCK_CLUSTERID  		0xf3
-#define TEMP_HUM_DATA_CLUSTERID  	  		0xf4
-#define SYNC_FREQ_CLUSTERID	  	      		0xF5
-#define SYNC_PARAM_CLUSTERID		  		0xF6
-#define END_STATUS_CLUSTERID		  		0xF7
-#define END_SYNC_PARAMS_CLUSTERID		  	0xF8
-#define SYNC_NV_CONFIG_CLUSTERID		  	0xF9
-#define SYNC_NV_CONFIG_RESULT_CLUSTERID		0xFA
-#define REMOTE_MT_UART_DATA_CLUSTERID		0xFB
-#define REMOTE_MT_UART_RESPONSE_CLUSTERID	0xFC
+#define GENERICAPP_MAX_CLUSTERS       1
+#define GENERICAPP_CLUSTERID          0xf1
+#define SYNC_TIME_CLUSTERID			  0xf2
+#define REQUEST_SYNC_CLOCK_CLUSTERID  0xf3
+#define TEMP_HUM_DATA_CLUSTERID  	  0xf4
+#define SYNC_FREQ_CLUSTERID	  	      0xF5
+#define SYNC_PARAM_CLUSTERID		  0xF6
 #define ROUTER_STATUS_CLUSTERID				0xFD
-#define SEND_APP_MSG_CLUSTERID				0xFE
+#define REBOOT_ROUTER_CLUSTERID				0xE0
+#define ROUTER_NV_CONFIG_CLUSTERID			0xE1
 
 
 
@@ -42,15 +36,15 @@
 // Send Message Timeout
 #define GENERICAPP_SEND_MSG_TIMEOUT   5000     // Every 5 seconds
 // Application Events (OSAL) - These are bit weighted definitions.
-#define GENERICAPP_SEND_MSG_EVT       	0x0001
-#define UART_RX_CB_EVT                	0x0002 	
-#define SAMPLE_TEMP_EVT               	0x0004
-#define SAMPLE_HUM_EVT				  	0x0008
-#define SAMPLE_TASK_EVT	  	  		  	0x0010
-#define TEMP_PACKET_SEND_EVT		  	0x0020
-#define REQUEST_SYNC_CLOCK_EVT		  	0x0040
-#define END_REPORT_CONFIRM_TIMEOUT_EVT	0x0080
-#define COOR_TEST_TIMEOUT_EVT			0x0100
+#define GENERICAPP_SEND_MSG_EVT       0x0001
+#define UART_RX_CB_EVT                0x0002 	
+#define SAMPLE_TEMP_EVT               0x0004
+#define SAMPLE_HUM_EVT				  0x0008
+#define SAMPLE_TASK_EVT	  	  		  0x0010
+#define TEMP_PACKET_SEND_EVT		  0x0020
+#define REQUEST_SYNC_CLOCK_EVT		  0x0040
+#define REPORT_STATUS_EVT			  0x0080
+#define REPORT_HEAP_STATUS_EVT		  0x0100
 
 
 //采集任务
@@ -68,9 +62,8 @@
 #define COOR_START_CMD				  0xF3
 #define MASTER_SET_CLOCK_CMD		  0xF4 
 #define MASTER_SET_FREQ_CMD	          0xF5
-#define END_REPORT_STATUS_CMD		  0xF6
-#define MASTER_SET_NV_CONFIG_CMD	  0xF7
 #define MASTER_GET_ADDR_COUNT_CMD	  0xF8
+#define ROUTER_STATUS_CMD			  0xFD
 
 //uart constans
 // 命令格式为
@@ -83,43 +76,8 @@
 #define UART_MIN_LEN				  5 		// 最小数据长度 
 #define MT_RSP_CMD_APP				  ((uint8)MT_RPC_CMD_SRSP | (uint8)MT_RPC_SYS_APP)
 
-//默认参数值
-#define PACKET_TIME_WINDOW_DEFAULT				0
-#define PACKET_TIME_WINDOW_INTERVAL_DEFAULT		1  //1s
- 
-//参数nv存储位置
-#define NV_PARAM_VERSION				0x0401
-#define NV_TEMP_SAMPLE_TIME				0x0402
-#define NV_HUM_SAMPLE_TIME				0x0403
-#define NV_PACKET_SEND_TIME				0x0404
-#define NV_SYNC_CLOCK_TIME				0x0405
-#define NV_PACKET_TIME_WINDOW			0x0406
 
+#define NV_REPORT_TIME				0x0601
+#define REPORT_TIME_DEFAULT			600000
 
-#define NV_PARAM_FLAGS					0x0501
-#define NV_REMOTE_URART_DEST_ADDR		0x0502
-#define NV_PACKET_TIME_WINDOW_INTERVAL	0x0503
-
-#define END_REPORT_RE_SEND_TIMES		3
-
-//参数同步标志
-#define PARAMS_FLAGS_CLOCK				0x0001
-#define PARAMS_FLAGS_TEMP_TIME			0x0002
-#define PARAMS_FLAGS_HUM_TIME			0x0004
-#define PARAMS_FLAGS_PACKET_TIME		0x0008
-#define PARAMS_FLAGS_SYNC_CLOCK_TIME	0x0010
-#define PARAMS_FLAGS_PACKET_TIME_WINDOW	0x0020
-
-
-typedef struct{
-	uint16  netAddr;
-	uint8 	extAddr[Z_EXTADDR_LEN];
-	uint16 	vdd;
-	uint8	paramsVersion;
-	UTCTime	clock;
-	uint32	tempTime;
-	uint32	humTime;
-	uint32	packetTime;
-	uint32	syncClockTime; 
-}endStatus_t;
 #endif

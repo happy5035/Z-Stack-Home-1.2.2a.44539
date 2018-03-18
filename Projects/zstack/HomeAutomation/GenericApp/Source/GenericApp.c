@@ -64,9 +64,11 @@
 #include "ZDObject.h"
 #include "ZDProfile.h"
 #include "user_printf.h"
+#include "FIFOQueue.h"
 #include "OSAL_PwrMgr.h"
-#include "OSAL_Nv.h"
-#include "ZDSecMgr.h"
+#include "sh20.h"
+#include "tmp275.h"
+#include "osal_NV.h"
 
 #include "GenericApp.h"
 #include "DebugTrace.h"
@@ -151,22 +153,15 @@ byte GenericApp_TransID;  // This is the unique message ID (counter)
 afAddrType_t GenericApp_DstAddr;
 afAddrType_t GenericApp_BroadcastAddr;
 
-uint32  sampleTempTimeDelay = 5000;				//1s
-uint32 tempPacketSendTimeDelay = 60000;			//30s
-uint8 tempPacketSendRetrayTimes = 0;			//温度数据包重复发送次数
-uint8 tempPacketSendPacketTransID;
-uint32 syncTimeDealy = (uint32)1000*60;
-uint16 tempPacketTimeWindow = 1;
+typedef struct{
+	uint8 	cmd;
+	uint16  netAddr;
+	uint8 	extAddr[Z_EXTADDR_LEN];
+	uint16	parentNetAddr;
+	uint8	parentExtAddr[Z_EXTADDR_LEN];
+}routerStatusPacket_t;
 
-uint32 sampleHumTimeDelay = 10000;// 60s一次采集湿度数据
-
-uint8 sampleTask = 0x00;
-
-uint32 requestSyncClockDelay = 600000; //10分钟同步一次时间
-
-uint8 paramsVersion = 1;
-
-uint8 extAddr[Z_EXTADDR_LEN];
+routerStatusPacket_t statusPacket;
 
 
 /*********************************************************************
@@ -175,8 +170,12 @@ uint8 extAddr[Z_EXTADDR_LEN];
 static void GenericApp_ProcessZDOMsgs( zdoIncomingMsg_t *inMsg );
 static void GenericApp_HandleKeys( byte shift, byte keys );
 static void GenericApp_MessageMSGCB( afIncomingMSGPacket_t *pckt );
-static void ReadNvParams(void);
 
+
+
+static void RouterReportStatus(void);
+static void RouterReboot(afIncomingMSGPacket_t *pkt);
+static void RouterNvConfig(afIncomingMSGPacket_t *pkt);
 
 
 
@@ -207,6 +206,7 @@ void GenericApp_Init( uint8 task_id )
   GenericApp_TaskID = task_id;
   GenericApp_NwkState = DEV_INIT;
   GenericApp_TransID = 0;
+
   // Device hardware initialization can be added here or in main() (Zmain.c).
   // If the hardware is application specific - add it here.
   // If the hardware is other parts of the device add it in main().
@@ -214,6 +214,7 @@ void GenericApp_Init( uint8 task_id )
   GenericApp_DstAddr.addrMode = (afAddrMode_t)Addr16Bit;
   GenericApp_DstAddr.endPoint = GENERICAPP_ENDPOINT;
   GenericApp_DstAddr.addr.shortAddr = 0x00;
+  
 	//广播地址
 	GenericApp_BroadcastAddr.addrMode = (afAddrMode_t)
 	AddrBroadcast;
@@ -239,15 +240,14 @@ void GenericApp_Init( uint8 task_id )
   HalLcdWriteString( "GenericApp", HAL_LCD_LINE_1 );
 #endif
 
-//  ZDO_RegisterForZDOMsg( GenericApp_TaskID, End_Device_Bind_rsp );
-//  ZDO_RegisterForZDOMsg( GenericApp_TaskID, Match_Desc_rsp );
-	//初始化模块extAddr
-	ZMacGetReq( ZMacExtAddr, extAddr );
+	uint8 res;
+	uint32 reportTime;
+	res = osal_nv_read(NV_REPORT_TIME, 0, 4, &reportTime);
+	if(res == NV_OPER_FAILED){
+		reportTime = REPORT_TIME_DEFAULT;
+		osal_nv_item_init(NV_REPORT_TIME, 4, &reportTime);
+	}
 
-	ZDO_RegisterForZDOMsg(GenericApp_TaskID, Device_annce);
-//    EndTempSampleCfg();
-
-	MT_UartRegistGenericAppTaskId(GenericApp_TaskID);
 }
 
 /*********************************************************************
@@ -305,7 +305,6 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
           #ifndef RTR_NWK
           printf("%d data confirm,status: 0x%x\n", sentTransID,sentStatus);
 		  #endif
-		  
           if ( sentStatus != ZSuccess )
           {
             // The data wasn't delivered -- Do something
@@ -324,30 +323,17 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
           {
           	HalLedSet(HAL_LED_ALL, HAL_LED_MODE_OFF);
           	if(GenericApp_NwkState == DEV_ZB_COORD){
-				printf("coordinator start...\n");
-				HalLedSet(HAL_LED_1, HAL_LED_MODE_ON);
-				ReadNvParams();
-				CoorSendCoorStart();
-//				osal_setClock(0x21AAEBCB);  //2017/11/24 16:40:00
-				
 			}
 			if(GenericApp_NwkState == DEV_ROUTER){
-				printf("router start...\n");
-				HalLedSet(HAL_LED_2, HAL_LED_MODE_ON);
+				RouterReportStatus();
+				osal_start_reload_timer(GenericApp_TaskID, REPORT_HEAP_STATUS_EVT, 1000);
 			}
 			if(GenericApp_NwkState == DEV_END_DEVICE){
-				
 				
 			}
             
           }
           break;
-		case MT_SYS_APP_MSG:
-			CoorProcessMtSysMsg((mtSysAppMsg_t *)MSGpkt);
-			break;
-		case CMD_SERIAL_MSG:
-			CoorMTUartSerialMsgProcess((mtOSALSerialData_t *)MSGpkt);
-			break;
         default:
           break;
       }
@@ -362,13 +348,21 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
     // return unprocessed events
     return (events ^ SYS_EVENT_MSG);
   }
-  
-
-	if(events & COOR_TEST_TIMEOUT_EVT){
-		
-		return events ^ COOR_TEST_TIMEOUT_EVT;
-	}
-	
+  if(events & REPORT_STATUS_EVT){
+		RouterReportStatus();
+		uint32 reportTime;
+  		if(osal_nv_read(NV_REPORT_TIME, 0, 4, &reportTime) == NV_OPER_FAILED){
+			reportTime = REPORT_TIME_DEFAULT;
+		}
+		osal_start_timerEx(GenericApp_TaskID, REPORT_STATUS_EVT, reportTime);
+  	return events ^ REPORT_STATUS_EVT;
+  }
+  if(events & REPORT_HEAP_STATUS_EVT){
+	//uint16 stack_used = osal_stack_used();
+	//uint16 memAlo = osal_heap_mem_used();
+  	//printf("%d,%d\n",stack_used,memAlo);
+	return events ^ REPORT_HEAP_STATUS_EVT;
+  }
 	
   return 0;
 }
@@ -424,16 +418,6 @@ static void GenericApp_ProcessZDOMsgs( zdoIncomingMsg_t *inMsg )
         }
       }
       break;
-	
-	case Device_annce:
-		{
-		ZDO_DeviceAnnce_t devAnnc;
-		ZDO_ParseDeviceAnnce(inMsg, &devAnnc);
-		if(0 == (devAnnc.capabilities & 0x0F)){
-			ZDSecMgrAddrClear(devAnnc.extAddr);
-		}
-	}
-		break;
   }
 }
 
@@ -462,97 +446,66 @@ static void GenericApp_MessageMSGCB( afIncomingMSGPacket_t *pkt )
 {
   switch ( pkt->clusterId )
   {
-    case GENERICAPP_CLUSTERID:
-      break;
-    case TEMP_HUM_DATA_CLUSTERID:
-		HalLedSet ( HAL_LED_4, HAL_LED_MODE_BLINK );  // Blink an LED
-		CoorProcessTempHumData(pkt);
-   		break;
-	case END_STATUS_CLUSTERID:
-		CoorProcessEndStatus(pkt);
+	
+	case REBOOT_ROUTER_CLUSTERID:
+		RouterReboot(pkt);
 		break;
-	case REMOTE_MT_UART_RESPONSE_CLUSTERID:
-		CoorProcessUartResponse(pkt);
-		break;
-	case ROUTER_STATUS_CLUSTERID:
-		CoorProcessRouterStatus(pkt);
-		break;
-	case SEND_APP_MSG_CLUSTERID:
-		CoorSendAppMsg(pkt);
+	case ROUTER_NV_CONFIG_CLUSTERID:
+		RouterNvConfig(pkt);
 		break;
 	default :
 		break;
   }
 }
 
-static void ReadNvParams(){
-	uint8 result;
-	uint8* buf;
-	buf = osal_mem_alloc(4);
-	
-	result = osal_nv_read(NV_PARAM_VERSION, 0, 1, buf);
-	if(result == NV_OPER_FAILED){
-		*buf = paramsVersion;
-		osal_nv_item_init(NV_PARAM_VERSION, 1, buf);
-	}else{
-		paramsVersion = *buf;
+static void RouterNvConfig(afIncomingMSGPacket_t *pkt){
+	uint8 len;
+	uint8* data;
+	len = pkt->cmd.DataLength;
+	data = pkt->cmd.Data;
+	uint8 item_size;
+	item_size = *data ++;
+	if(len >=5 && item_size>0){
+		int i;
+		uint16 item_id;
+		uint16 item_len;
+		for(i=0;i<item_size;i++){
+			item_id = osal_build_uint16(data);
+			data +=2;
+			item_len = osal_build_uint16(data);
+			data+=2;
+			osal_nv_write(item_id, 0, item_len,  data);
+			data+=item_len;
+		}
 	}
-	osal_nv_write(NV_PARAM_VERSION, 0, 1, &paramsVersion);
-	result = osal_nv_read(NV_PARAM_FLAGS, 0, 4, buf);
-	if(result == NV_OPER_FAILED){
-		osal_buffer_uint32(buf, 0);
-		osal_nv_item_init(NV_PARAM_FLAGS, 4, buf);
-	}
-	
-	result = osal_nv_read(NV_TEMP_SAMPLE_TIME, 0, 4, buf);
-	if(result == NV_OPER_FAILED){
-		osal_buffer_uint32(buf, sampleTempTimeDelay);
-		osal_nv_item_init(NV_TEMP_SAMPLE_TIME, 4, buf);
-	}else{
-		sampleTempTimeDelay = osal_build_uint32(buf, 4);
-	}
-
-	result = osal_nv_read(NV_HUM_SAMPLE_TIME, 0, 4, buf);
-	if(result == NV_OPER_FAILED){
-		osal_buffer_uint32(buf, sampleHumTimeDelay);
-		osal_nv_item_init(NV_HUM_SAMPLE_TIME, 4, buf);
-	}else{
-		sampleHumTimeDelay = osal_build_uint32(buf, 4);
-	}
-	
-	result = osal_nv_read(NV_PACKET_SEND_TIME, 0, 4, buf);
-	if(result == NV_OPER_FAILED){
-		osal_buffer_uint32(buf, tempPacketSendTimeDelay);
-		osal_nv_item_init(NV_PACKET_SEND_TIME, 4, buf);
-	}else{
-		tempPacketSendTimeDelay = osal_build_uint32(buf, 4);
-	}
-	
-	result = osal_nv_read(NV_SYNC_CLOCK_TIME, 0, 4, buf);
-	if(result == NV_OPER_FAILED){
-		osal_buffer_uint32(buf, requestSyncClockDelay);
-		osal_nv_item_init(NV_SYNC_CLOCK_TIME, 4, buf);
-	}else{
-		requestSyncClockDelay = osal_build_uint32(buf, 4);
-	}
-
-	result = osal_nv_read(NV_REMOTE_URART_DEST_ADDR, 0, 2, buf);
-	if(result == NV_OPER_FAILED){
-		osal_buffer_uint32(buf, 0);
-		osal_nv_item_init(NV_REMOTE_URART_DEST_ADDR, 2, buf);
-	}
-	result = osal_nv_read(NV_PACKET_TIME_WINDOW, 0, 2, buf);
-	if(result == NV_OPER_FAILED){
-		osal_memset(buf, 0, 4);
-		osal_nv_item_init(NV_PACKET_TIME_WINDOW, 2,  buf);
-	}
-	result = osal_nv_read(NV_PACKET_TIME_WINDOW_INTERVAL, 0, 2, buf);
-	if(result == NV_OPER_FAILED){
-		uint16 packetTimeWindowInterval = PACKET_TIME_WINDOW_INTERVAL_DEFAULT;
-		osal_nv_item_init(NV_PACKET_TIME_WINDOW_INTERVAL, 2,  &packetTimeWindowInterval);
-	}
-	osal_mem_free(buf);
 }
 
+static void RouterReportStatus(){
+	statusPacket.cmd = ROUTER_STATUS_CMD;
+	statusPacket.netAddr = NLME_GetShortAddr();
+	byte* extAddr = NLME_GetExtAddr();
+	osal_memcpy(statusPacket.extAddr,  extAddr, Z_EXTADDR_LEN); 
+	statusPacket.parentNetAddr = NLME_GetCoordShortAddr();
+	NLME_GetCoordExtAddr(statusPacket.parentExtAddr);
+	
+	uint8 len ;
+	len = sizeof(statusPacket);
+	 GenericApp_DstAddr.addrMode = (afAddrMode_t)Addr16Bit;
+	 GenericApp_DstAddr.endPoint = GENERICAPP_ENDPOINT;
+	 GenericApp_DstAddr.addr.shortAddr = 0x00;
+	if (AF_DataRequest(&GenericApp_DstAddr, &GenericApp_epDesc, 
+			ROUTER_STATUS_CLUSTERID, 
+			len, 
+		(byte *) &statusPacket, 
+			&GenericApp_TransID, 
+			AF_DISCV_ROUTE | AF_ACK_REQUEST , AF_DEFAULT_RADIUS) == afStatus_SUCCESS)
+		{
+			
+		}else{
+	    }
+}
+static void RouterReboot(afIncomingMSGPacket_t *pkt){
+	SystemResetSoft();
+}
 
 
