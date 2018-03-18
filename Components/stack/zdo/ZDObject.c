@@ -348,7 +348,7 @@ void ZDO_StartDevice( byte logicalType, devStartModes_t startMode, byte beaconOr
         // ExtendedPanID. If the PAN is not found, an scan should be completed
         // on all channels.
         // When devices rejoin the network and the PAN is not found from
-      //  runtimeChannel = MAX_CHANNELS_24GHZ;
+        runtimeChannel = MAX_CHANNELS_24GHZ;
       }
     #endif // ZIGBEE_COMMISSIONING
   #endif
