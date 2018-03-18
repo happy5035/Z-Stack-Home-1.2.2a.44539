@@ -81,7 +81,7 @@
 
 #define xHAL_PA_LNA
 #define xHAL_PA_LNA_CC2590
-#define HAL_PA_LNA_CC2592
+#define xHAL_PA_LNA_CC2592
 
 /* HGM Port and Pin */
 #define HGM_BASE   GPIO_D_BASE
