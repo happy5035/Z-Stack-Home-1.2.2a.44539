@@ -68,7 +68,7 @@ extern "C"
 #endif
 
 #if !defined( MT_UART_DEFAULT_OVERFLOW )
-  #define MT_UART_DEFAULT_OVERFLOW       TRUE
+  #define MT_UART_DEFAULT_OVERFLOW       FALSE
 #endif
 
 #if !defined MT_UART_DEFAULT_BAUDRATE
