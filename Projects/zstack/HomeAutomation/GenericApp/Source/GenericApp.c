@@ -358,6 +358,9 @@ void GenericApp_Init( uint8 task_id )
 
 //	ZDO_RegisterForZDOMsg(GenericApp_TaskID, Device_annce);
 //    EndTempSampleCfg();
+#if defined ( POWER_SAVING )
+     osal_pwrmgr_device( PWRMGR_BATTERY );
+#endif
 }
 
 /*********************************************************************

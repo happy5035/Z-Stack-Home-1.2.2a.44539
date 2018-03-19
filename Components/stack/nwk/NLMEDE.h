@@ -88,7 +88,7 @@ extern "C" {
 #define BEACON_ORDER_30_MSEC         1
 #define BEACON_ORDER_15_MSEC                 0
 
-#define STARTING_SCAN_DURATION       5
+#define STARTING_SCAN_DURATION       0
 #define MAX_SCAN_DURATION           15
 #define ENERGY_SCAN_INCREMENT       16
 
