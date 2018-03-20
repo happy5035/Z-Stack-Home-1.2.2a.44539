@@ -487,7 +487,15 @@ static void RouterReportStatus(){
 	osal_memcpy(statusPacket.extAddr,  extAddr, Z_EXTADDR_LEN); 
 	statusPacket.parentNetAddr = NLME_GetCoordShortAddr();
 	NLME_GetCoordExtAddr(statusPacket.parentExtAddr);
-	
+    printf("\n");
+	printf("cnad:%04x\n",statusPacket.netAddr);
+    for(int i=0;i<Z_EXTADDR_LEN;i++){
+        printf("%02x",aExtendedAddress[i]);
+    }
+    
+    printf("\n");
+	printf("pnad:%04x\n",statusPacket.parentNetAddr);
+	printf("pead:%x\n",statusPacket.parentExtAddr);
 	uint8 len ;
 	len = sizeof(statusPacket);
 	 GenericApp_DstAddr.addrMode = (afAddrMode_t)Addr16Bit;
