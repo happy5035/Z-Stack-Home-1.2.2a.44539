@@ -22,7 +22,7 @@
   its documentation for any purpose.
 
   YOU FURTHER ACKNOWLEDGE AND AGREE THAT THE SOFTWARE AND DOCUMENTATION ARE
-  PROVIDED “AS IS?WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+  PROVIDED ï¿½AS IS?WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESS OR IMPLIED,
   INCLUDING WITHOUT LIMITATION, ANY WARRANTY OF MERCHANTABILITY, TITLE,
   NON-INFRINGEMENT AND FITNESS FOR A PARTICULAR PURPOSE. IN NO EVENT SHALL
   TEXAS INSTRUMENTS OR ITS LICENSORS BE LIABLE OR OBLIGATED UNDER CONTRACT,
@@ -153,16 +153,16 @@ afAddrType_t GenericApp_BroadcastAddr;
 
 uint32  sampleTempTimeDelay = 5000;				//1s
 uint32 tempPacketSendTimeDelay = 60000;			//30s
-uint8 tempPacketSendRetrayTimes = 0;			//ÎÂ¶ÈÊý¾Ý°üÖØ¸´·¢ËÍ´ÎÊý
+uint8 tempPacketSendRetrayTimes = 0;			//ï¿½Â¶ï¿½ï¿½ï¿½ï¿½Ý°ï¿½ï¿½Ø¸ï¿½ï¿½ï¿½ï¿½Í´ï¿½ï¿½ï¿½
 uint8 tempPacketSendPacketTransID;
 uint32 syncTimeDealy = (uint32)1000*60;
 uint16 tempPacketTimeWindow = 1;
 
-uint32 sampleHumTimeDelay = 10000;// 60sÒ»´Î²É¼¯Êª¶ÈÊý¾Ý
+uint32 sampleHumTimeDelay = 10000;// 60sÒ»ï¿½Î²É¼ï¿½Êªï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 
 uint8 sampleTask = 0x00;
 
-uint32 requestSyncClockDelay = 600000; //10·ÖÖÓÍ¬²½Ò»´ÎÊ±¼ä
+uint32 requestSyncClockDelay = 600000; //10ï¿½ï¿½ï¿½ï¿½Í¬ï¿½ï¿½Ò»ï¿½ï¿½Ê±ï¿½ï¿½
 
 uint8 paramsVersion = 1;
 
@@ -209,17 +209,17 @@ void GenericApp_Init( uint8 task_id )
   GenericApp_TransID = 0;
   // Device hardware initialization can be added here or in main() (Zmain.c).
   // If the hardware is application specific - add it here.
-  // If the hardware is other parts of the device add it in main().
+  // If 11the hardware is other parts of the device add it in main().
 
   GenericApp_DstAddr.addrMode = (afAddrMode_t)Addr16Bit;
   GenericApp_DstAddr.endPoint = GENERICAPP_ENDPOINT;
   GenericApp_DstAddr.addr.shortAddr = 0x00;
-	//¹ã²¥µØÖ·
+	//ï¿½ã²¥ï¿½ï¿½Ö·
 	GenericApp_BroadcastAddr.addrMode = (afAddrMode_t)
 	AddrBroadcast;
 	GenericApp_BroadcastAddr.endPoint = GENERICAPP_ENDPOINT;
 	GenericApp_BroadcastAddr.addr.shortAddr = 0xFFFF;
-  
+
 
   // Fill out the endpoint description.
   GenericApp_epDesc.endPoint = GENERICAPP_ENDPOINT;
@@ -241,7 +241,7 @@ void GenericApp_Init( uint8 task_id )
 
 //  ZDO_RegisterForZDOMsg( GenericApp_TaskID, End_Device_Bind_rsp );
 //  ZDO_RegisterForZDOMsg( GenericApp_TaskID, Match_Desc_rsp );
-	//³õÊ¼»¯Ä£¿éextAddr
+	//ï¿½ï¿½Ê¼ï¿½ï¿½Ä£ï¿½ï¿½extAddr
 	ZMacGetReq( ZMacExtAddr, extAddr );
 
 	ZDO_RegisterForZDOMsg(GenericApp_TaskID, Device_annce);
@@ -305,7 +305,7 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
           #ifndef RTR_NWK
           printf("%d data confirm,status: 0x%x\n", sentTransID,sentStatus);
 		  #endif
-		  
+
           if ( sentStatus != ZSuccess )
           {
             // The data wasn't delivered -- Do something
@@ -329,17 +329,17 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
 				ReadNvParams();
 				CoorSendCoorStart();
 //				osal_setClock(0x21AAEBCB);  //2017/11/24 16:40:00
-				
+
 			}
 			if(GenericApp_NwkState == DEV_ROUTER){
 				printf("router start...\n");
 				HalLedSet(HAL_LED_2, HAL_LED_MODE_ON);
 			}
 			if(GenericApp_NwkState == DEV_END_DEVICE){
-				
-				
+
+
 			}
-            
+
           }
           break;
 		case MT_SYS_APP_MSG:
@@ -362,14 +362,14 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
     // return unprocessed events
     return (events ^ SYS_EVENT_MSG);
   }
-  
+
 
 	if(events & COOR_TEST_TIMEOUT_EVT){
-		
+
 		return events ^ COOR_TEST_TIMEOUT_EVT;
 	}
-	
-	
+
+
   return 0;
 }
 
@@ -424,7 +424,7 @@ static void GenericApp_ProcessZDOMsgs( zdoIncomingMsg_t *inMsg )
         }
       }
       break;
-	
+
 	case Device_annce:
 		{
 		ZDO_DeviceAnnce_t devAnnc;
@@ -440,7 +440,7 @@ static void GenericApp_ProcessZDOMsgs( zdoIncomingMsg_t *inMsg )
 
 static void GenericApp_HandleKeys( uint8 shift, uint8 keys )
 {
-  
+
 }
 
 /*********************************************************************
@@ -489,7 +489,7 @@ static void ReadNvParams(){
 	uint8 result;
 	uint8* buf;
 	buf = osal_mem_alloc(4);
-	
+
 	result = osal_nv_read(NV_PARAM_VERSION, 0, 1, buf);
 	if(result == NV_OPER_FAILED){
 		*buf = paramsVersion;
@@ -503,7 +503,7 @@ static void ReadNvParams(){
 		osal_buffer_uint32(buf, 0);
 		osal_nv_item_init(NV_PARAM_FLAGS, 4, buf);
 	}
-	
+
 	result = osal_nv_read(NV_TEMP_SAMPLE_TIME, 0, 4, buf);
 	if(result == NV_OPER_FAILED){
 		osal_buffer_uint32(buf, sampleTempTimeDelay);
@@ -519,7 +519,7 @@ static void ReadNvParams(){
 	}else{
 		sampleHumTimeDelay = osal_build_uint32(buf, 4);
 	}
-	
+
 	result = osal_nv_read(NV_PACKET_SEND_TIME, 0, 4, buf);
 	if(result == NV_OPER_FAILED){
 		osal_buffer_uint32(buf, tempPacketSendTimeDelay);
@@ -527,7 +527,7 @@ static void ReadNvParams(){
 	}else{
 		tempPacketSendTimeDelay = osal_build_uint32(buf, 4);
 	}
-	
+
 	result = osal_nv_read(NV_SYNC_CLOCK_TIME, 0, 4, buf);
 	if(result == NV_OPER_FAILED){
 		osal_buffer_uint32(buf, requestSyncClockDelay);
@@ -553,6 +553,3 @@ static void ReadNvParams(){
 	}
 	osal_mem_free(buf);
 }
-
-
-
