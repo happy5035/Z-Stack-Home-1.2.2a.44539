@@ -291,7 +291,7 @@ uint16 GenericApp_ProcessEvent( uint8 task_id, uint16 events )
 
         case AF_DATA_CONFIRM_CMD:
           // This message is received as a confirmation of a data packet sent.
-          // The status is of ZStatus_t type [defined in ZComDef.h]
+          // The status is of ZStat11us_t type [defined in ZComDef.h]
           // The message fields are defined in AF.h
           afDataConfirm = (afDataConfirm_t *)MSGpkt;
 
