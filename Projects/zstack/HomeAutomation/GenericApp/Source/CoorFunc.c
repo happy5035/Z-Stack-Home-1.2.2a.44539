@@ -31,6 +31,7 @@ typedef struct {
 
 nvConfigItems_t nvConfigItems;
 
+
 /*   C O O R   P R O C E S S   T E M P   H U M   D A T A   */
 /*-------------------------------------------------------------------------
     协调器处理终端发送的温度湿度数据包
@@ -62,6 +63,7 @@ void CoorProcessTempHumData(afIncomingMSGPacket_t *pkt){
 -------------------------------------------------------------------------*/
 void CoorSendCoorStart(void){
 	
+nvConfigItems.items = osal_mem_alloc(1);
 #ifdef MT_TASK
 	uint8 cmd = COOR_START_CMD;
 	MT_BuildAndSendZToolResponse(MT_RSP_CMD_APP, MT_APP_MSG, 1, &cmd);
