@@ -141,6 +141,7 @@ uint8 MasterSetClock(mtSysAppMsg_t *pkt){
 	UTCTime clock;
 	clock = osal_build_uint32(pkt->appData, pkt->appDataLen);
 	osal_setClock(clock);
+        CoorReportNVParams();
 	return ZSuccess;
 }
 
