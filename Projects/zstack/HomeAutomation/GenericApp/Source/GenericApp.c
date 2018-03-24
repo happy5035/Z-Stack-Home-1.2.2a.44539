@@ -151,18 +151,18 @@ byte GenericApp_TransID;  // This is the unique message ID (counter)
 afAddrType_t GenericApp_DstAddr;
 afAddrType_t GenericApp_BroadcastAddr;
 
-uint32  sampleTempTimeDelay = 5000;				//1s
-uint32 tempPacketSendTimeDelay = 60000;			//30s
+uint32  sampleTempTimeDelay = 30000;				//30s
+uint32 tempPacketSendTimeDelay = 300000;			//5min
 uint8 tempPacketSendRetrayTimes = 0;			//�¶����ݰ��ظ����ʹ���
 uint8 tempPacketSendPacketTransID;
 uint32 syncTimeDealy = (uint32)1000*60;
 uint16 tempPacketTimeWindow = 1;
 
-uint32 sampleHumTimeDelay = 10000;// 60sһ�βɼ�ʪ������
+uint32 sampleHumTimeDelay = 30000;// 60sһ�βɼ�ʪ������
 
 uint8 sampleTask = 0x00;
 
-uint32 requestSyncClockDelay = 600000; //10����ͬ��һ��ʱ��
+uint32 requestSyncClockDelay = 1800000; //10����ͬ��һ��ʱ��
 
 uint8 paramsVersion = 1;
 
