@@ -47,7 +47,6 @@
 #include "hal_led.h"
 #include "osal.h"
 #include "hal_board.h"
-#include "bsp_led.h"
 
 /***************************************************************************************************
  *                                             CONSTANTS

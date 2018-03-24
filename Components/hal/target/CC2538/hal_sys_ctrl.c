@@ -215,9 +215,9 @@ void SysCtrlWakeupSetting(void)
   GPIOIntWakeupEnable(GPIO_IWE_SM_TIMER);
   
   /* Setup GPIO A, C as a falling edge  */
-  //GPIOPowIntTypeSet(BSP_KEY_DIR_BASE, BSP_KEY_LEFT | BSP_KEY_RIGHT | 
-    //                BSP_KEY_UP | BSP_KEY_DOWN, GPIO_POW_FALLING_EDGE);
-  //GPIOPowIntTypeSet(BSP_KEY_SEL_BASE, BSP_KEY_SELECT, GPIO_POW_FALLING_EDGE);
+  GPIOPowIntTypeSet(BSP_KEY_DIR_BASE, BSP_KEY_LEFT | BSP_KEY_RIGHT | 
+                    BSP_KEY_UP | BSP_KEY_DOWN, GPIO_POW_FALLING_EDGE);
+  GPIOPowIntTypeSet(BSP_KEY_SEL_BASE, BSP_KEY_SELECT, GPIO_POW_FALLING_EDGE);
   
 }
 
@@ -240,9 +240,9 @@ void SysCtrlWakeupSetting(void)
  */
 void SysCtrlPowIntEnableSetting(void)
 {
-  //GPIOPowIntEnable(BSP_KEY_DIR_BASE, BSP_KEY_LEFT | BSP_KEY_RIGHT | BSP_KEY_UP |
-    //               BSP_KEY_DOWN);
-  //GPIOPowIntEnable(BSP_KEY_SEL_BASE, BSP_KEY_SELECT); 
+  GPIOPowIntEnable(BSP_KEY_DIR_BASE, BSP_KEY_LEFT | BSP_KEY_RIGHT | BSP_KEY_UP |
+                   BSP_KEY_DOWN);
+  GPIOPowIntEnable(BSP_KEY_SEL_BASE, BSP_KEY_SELECT); 
 }
 
 /**************************************************************************************************
@@ -264,9 +264,9 @@ void SysCtrlPowIntEnableSetting(void)
  */
 void SysCtrlPowIntDisableSetting(void)
 {
-  //GPIOPowIntDisable(BSP_KEY_DIR_BASE, BSP_KEY_LEFT | BSP_KEY_RIGHT | BSP_KEY_UP |
-    //               BSP_KEY_DOWN);
-  //GPIOPowIntDisable(BSP_KEY_SEL_BASE, BSP_KEY_SELECT); 
+  GPIOPowIntDisable(BSP_KEY_DIR_BASE, BSP_KEY_LEFT | BSP_KEY_RIGHT | BSP_KEY_UP |
+                   BSP_KEY_DOWN);
+  GPIOPowIntDisable(BSP_KEY_SEL_BASE, BSP_KEY_SELECT); 
 }
 
 /**************************************************************************************************
@@ -287,9 +287,9 @@ void SysCtrlPowIntDisableSetting(void)
  */
 void SysCtrlPowIntClear(void)
 {
-  //GPIOPowIntClear(BSP_KEY_DIR_BASE, BSP_KEY_LEFT | BSP_KEY_RIGHT | BSP_KEY_UP |
-  //                BSP_KEY_DOWN);
-  //GPIOPowIntClear(BSP_KEY_SEL_BASE,BSP_KEY_SELECT);
+  GPIOPowIntClear(BSP_KEY_DIR_BASE, BSP_KEY_LEFT | BSP_KEY_RIGHT | BSP_KEY_UP |
+                  BSP_KEY_DOWN);
+  GPIOPowIntClear(BSP_KEY_SEL_BASE,BSP_KEY_SELECT);
 }
 
 /**************************************************************************************************

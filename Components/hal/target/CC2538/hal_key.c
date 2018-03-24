@@ -206,17 +206,17 @@ void HalKeyConfig( bool interruptEnable, halKeyCBack_t cback)
     bspKeyInit(BSP_KEY_MODE_ISR);
     
     /* Map function dirKeyIsr to UP, LEFT, RIGHT and DOWN keys */
-    //bspKeyIntRegister((BSP_KEY_UP|BSP_KEY_LEFT|BSP_KEY_RIGHT|BSP_KEY_DOWN),
-                      //&interrupt_keybd);
+    bspKeyIntRegister((BSP_KEY_UP|BSP_KEY_LEFT|BSP_KEY_RIGHT|BSP_KEY_DOWN),
+                      &interrupt_keybd);
     
     /* Map function selectKeyIsr to SELECT key */
-   // bspKeyIntRegister(BSP_KEY_SELECT, &interrupt_keybd);
+    bspKeyIntRegister(BSP_KEY_SELECT, &interrupt_keybd);
     
     /* Enable interrupts on all keys */
-    //bspKeyIntEnable(BSP_KEY_ALL);
+    bspKeyIntEnable(BSP_KEY_ALL);
     
-    //IntPrioritySet(INT_GPIOC, HAL_INT_PRIOR_KEY);              
-    //IntPrioritySet(INT_GPIOA, HAL_INT_PRIOR_KEY);     
+    IntPrioritySet(INT_GPIOC, HAL_INT_PRIOR_KEY);              
+    IntPrioritySet(INT_GPIOA, HAL_INT_PRIOR_KEY);     
     
     /* Cancel polling if there is one active */
     osal_stop_timerEx(Hal_TaskID, HAL_KEY_EVENT);
