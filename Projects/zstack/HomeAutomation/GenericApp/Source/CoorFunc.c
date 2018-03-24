@@ -560,5 +560,40 @@ void CoorSendAppMsg( afIncomingMSGPacket_t *pkt){
 
 }
 
+/*   C O O R   R E P O R T   N   V   P A R A M S   */
+/*-------------------------------------------------------------------------
+    协调器上电报告当前参数值
+-------------------------------------------------------------------------*/
+void CoorReportNVParams(void){ 
+#ifdef MT_TASK	
+	uint8 len = 28;
+	uint8* msg;
+	msg = osal_mem_alloc(len);
+	if(msg){
+		uint8* buf = msg;
+		*buf++ = COOR_REMPORT_NV_PARAM_CMD;
+		osal_nv_read(NV_PARAM_VERSION, 0, 1, buf);
+		buf +=1;
+		osal_nv_read(NV_PARAM_FLAGS, 0, 4, buf);
+		buf+=4;
+		osal_nv_read(NV_TEMP_SAMPLE_TIME, 0, 4, buf);
+		buf+=4;
+		osal_nv_read(NV_HUM_SAMPLE_TIME, 0, 4, buf);
+		buf+=4;
+		osal_nv_read(NV_PACKET_SEND_TIME, 0, 4, buf);
+		buf+=4;
+		osal_nv_read(NV_SYNC_CLOCK_TIME, 0, 4, buf);
+		buf+=4;
+		osal_nv_read(NV_REMOTE_URART_DEST_ADDR, 0, 2, buf);
+		buf+=2;
+		osal_nv_read(NV_PACKET_TIME_WINDOW, 0, 2, buf);
+		buf+=2;
+		osal_nv_read(NV_PACKET_TIME_WINDOW_INTERVAL, 0, 2, buf);
+		MT_BuildAndSendZToolResponse(MT_RSP_CMD_APP, MT_APP_MSG, len, msg);
+		osal_mem_free(msg);
+	}
+#endif
+}
+
 
 

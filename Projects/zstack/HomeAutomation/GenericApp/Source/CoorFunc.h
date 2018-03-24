@@ -22,4 +22,5 @@ void CoorProcessUartResponse(afIncomingMSGPacket_t *pkt);
 uint16 CoorGetPacketTimeWindow(void);
 void CoorProcessRouterStatus(afIncomingMSGPacket_t *pkt);
 void CoorSendAppMsg( afIncomingMSGPacket_t *pkt);
+void CoorReportNVParams(void);
 #endif

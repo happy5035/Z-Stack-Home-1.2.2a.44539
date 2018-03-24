@@ -480,6 +480,12 @@ static void GenericApp_MessageMSGCB( afIncomingMSGPacket_t *pkt )
 	case SEND_APP_MSG_CLUSTERID:
 		CoorSendAppMsg(pkt);
 		break;
+	case REQUEST_SYNC_CLOCK_CLUSTERID:
+		CoorSendSyncClock(pkt);
+		break;	
+	case END_SYNC_PARAMS_CLUSTERID:
+		CoorProcessEndSyncParams(pkt);
+		break;
 	default :
 		break;
   }
@@ -552,4 +558,5 @@ static void ReadNvParams(){
 		osal_nv_item_init(NV_PACKET_TIME_WINDOW_INTERVAL, 2,  &packetTimeWindowInterval);
 	}
 	osal_mem_free(buf);
+	CoorReportNVParams();
 }
