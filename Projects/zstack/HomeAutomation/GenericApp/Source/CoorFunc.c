@@ -294,7 +294,6 @@ void CoorSendSyncParams(uint8 paramsVersion,uint16 destAddr){
 	packet = osal_mem_alloc(len);
 	uint8* _packet = packet;
 	*_packet++ = paramsVersion;
-	_packet = osal_buffer_uint32(_packet, paramsFlag);
 	
 	osal_buffer_uint32(buf, osal_getClock());
 	osal_memcpy(_packet,buf,4);
@@ -332,6 +331,7 @@ void CoorSendSyncParams(uint8 paramsVersion,uint16 destAddr){
 		len -=4;
 	}
 	_paramsFlag |= PARAMS_FLAGS_PACKET_TIME_WINDOW;
+	_packet = osal_buffer_uint32(packet+1, paramsFlag);
 	uint16 packetTimeWindow = CoorGetPacketTimeWindow();
 	osal_memcpy(_packet, &packetTimeWindow, 2);
 	if(len >5){
