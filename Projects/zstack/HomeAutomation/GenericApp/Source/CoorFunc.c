@@ -89,10 +89,13 @@ void CoorProcessMtSysMsg(mtSysAppMsg_t *pkt){
 			break;
 		case MASTER_SET_NV_CONFIG_CMD:
 			retValue = MasterSetNvConfig(pkt);
+			break;
 		case MASTER_GET_ADDR_COUNT_CMD:
 			retValue = MasterGetAddrCount(pkt);
+			break;
 		case MASTER_GET_NV_PARAMS_CMD:
 			CoorReportNVParams();
+			break;
 		default:
 			break;
 	}
