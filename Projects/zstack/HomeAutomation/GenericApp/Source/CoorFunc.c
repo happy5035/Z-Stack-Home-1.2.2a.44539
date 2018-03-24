@@ -91,6 +91,8 @@ void CoorProcessMtSysMsg(mtSysAppMsg_t *pkt){
 			retValue = MasterSetNvConfig(pkt);
 		case MASTER_GET_ADDR_COUNT_CMD:
 			retValue = MasterGetAddrCount(pkt);
+		case MASTER_GET_NV_PARAMS_CMD:
+			CoorReportNVParams();
 		default:
 			break;
 	}
@@ -228,47 +230,7 @@ uint8 MasterSetNvConfig(mtSysAppMsg_t *pkt){
 		}
 	}
 	return retValue;
-	/**
-	uint8* data = pkt->cmd.Data;
-	uint8 _paramsVersion;
-	uint8 nv_result;
-	uint8 pv = *data++;
-	uint8 item_size = *data++;
-	nv_result = osal_nv_read(NV_PARAM_VERSION, 0, 1, &_paramsVersion);
-	if(nv_result != NV_OPER_FAILED && pv != _paramsVersion){
-		_paramsVersion = pv;
-		uint8 i;
-		//ππ‘Ïitem
-		uint16 item_id;
-		uint16 item_len;
-		uint8* item_data;
-		uint32 syncResultFlag = 0;
-		for(i=0;i<item_size;i++){
-			item_id = osal_build_uint16(data);
-			data+=2;
-			item_len = osal_build_uint16(data);
-			data+=2;
-			if(item_len <10) {
-				item_data = osal_mem_alloc(item_len);
-				if(item_data){
-					nv_result = osal_nv_read(item_id, 0, item_len, item_data);
-					if(nv_result != NV_OPER_FAILED && !osal_memcmp(item_data, data, item_len) ){
-						nv_result = osal_nv_write(item_id, 0, item_len, data);
-						if(nv_result != NV_OPER_FAILED){
-							syncResultFlag++;
-						}
-					}
-				osal_mem_free(item_data);
 	
-				}
-				
-				
-	
-			}
-			syncResultFlag<<=1;
-			data+=item_len;
-		}
-	*/
 
 }
 

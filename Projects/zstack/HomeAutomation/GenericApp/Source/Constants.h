@@ -72,6 +72,7 @@
 #define MASTER_SET_NV_CONFIG_CMD	  0xF7
 #define MASTER_GET_ADDR_COUNT_CMD	  0xF8
 #define COOR_REMPORT_NV_PARAM_CMD	  0xF9
+#define MASTER_GET_NV_PARAMS_CMD	  0xFA
 
 //uart constans
 // ÃüÁî¸ñÊ½Îª
